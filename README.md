@@ -33,7 +33,7 @@ NGSoftFM Web（Windowsネイティブ運用）
 
 - .NET SDK（`dotnet` が使えること）
 - `ffmpeg.exe`（PATHに追加）
-- RTL-SDRを使う場合: Zadig等で WinUSB ドライバ
+- RTL-SDRを使う場合: Zadig等で WinUSB ドライバ（AirSPY SDR#で受信できる環境なら問題ありません）
 
 手順:
 
