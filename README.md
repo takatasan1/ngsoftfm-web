@@ -227,6 +227,8 @@ Open `http://localhost:8000/fm.mp3` in a browser or VLC.
 
 <h1>License</h1>
 
+This repository is licensed under **GPL-2.0-or-later**. See LICENSE.
+
 **NGSoftFM**, copyright (C) 2015, Edouard Griffiths, F4EXB
 
 This program is free software; you can redistribute it and/or modify
