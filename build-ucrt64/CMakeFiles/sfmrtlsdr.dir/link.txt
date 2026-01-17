@@ -1,0 +1,2 @@
+C:\PROGRA~1\mingw64\bin\ar.exe qc libsfmrtlsdr.a CMakeFiles/sfmrtlsdr.dir/sfmbase/RtlSdrSource.cpp.obj
+C:\PROGRA~1\mingw64\bin\ranlib.exe libsfmrtlsdr.a

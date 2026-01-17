@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NGSoftFM Web</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b0f19;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.08);
+      --border: rgba(255,255,255,.12);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --shadow: 0 12px 40px rgba(0,0,0,.35);
+      --brand: #7c3aed;
+      --brand2: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --good: #22c55e;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f5f7fb;
+        --panel: rgba(0,0,0,.04);
+        --panel2: rgba(0,0,0,.06);
+        --border: rgba(0,0,0,.10);
+        --text: rgba(0,0,0,.86);
+        --muted: rgba(0,0,0,.62);
+        --shadow: 0 12px 36px rgba(0,0,0,.10);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(1000px 500px at 10% -10%, rgba(124,58,237,.35), transparent 60%),
+        radial-gradient(800px 420px at 90% 0%, rgba(34,197,94,.22), transparent 55%),
+        radial-gradient(900px 600px at 50% 110%, rgba(59,130,246,.18), transparent 60%),
+        var(--bg);
+      color: var(--text);
+    }
+    a { color: inherit; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0 16px;
+    }
+    h1 { margin: 0; font-size: 22px; letter-spacing: .2px; }
+    .sub { color: var(--muted); font-size: 13px; }
+
+    .card {
+      background: linear-gradient(180deg, var(--panel), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+      align-items: end;
+    }
+    label { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+    input, select {
+      width: 100%;
+      font-size: 15px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.14);
+      color: var(--text);
+      outline: none;
+    }
+    @media (prefers-color-scheme: light) {
+      input, select { background: rgba(255,255,255,.7); }
+    }
+    input:focus, select:focus { border-color: rgba(124,58,237,.65); box-shadow: 0 0 0 4px rgba(124,58,237,.18); }
+
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+    @media (max-width: 860px) {
+      .span-3, .span-4, .span-6, .span-8 { grid-column: span 12; }
+    }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+    button {
+      font-size: 15px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      cursor: pointer;
+    }
+    button.primary {
+      background: linear-gradient(135deg, rgba(124,58,237,.92), rgba(99,102,241,.88));
+      border-color: rgba(124,58,237,.5);
+    }
+    button.danger {
+      background: linear-gradient(135deg, rgba(239,68,68,.90), rgba(244,63,94,.84));
+      border-color: rgba(239,68,68,.45);
+    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .muted { color: var(--muted); }
+    .hint { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,.25); }
+    .dot.good { background: var(--good); }
+    .dot.bad { background: var(--bad); }
+    .dot.warn { background: var(--warn); }
+
+    .player {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
+      margin-top: 12px;
+    }
+    #audio { width: 100%; height: 44px; }
+
+    .statusBox {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .statusLine {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel2);
+    }
+    .statusTitle { font-size: 12px; color: var(--muted); }
+    .statusValue { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(0,0,0,.06);
+      padding: 10px 12px;
+    }
+    summary { cursor: pointer; color: var(--muted); }
+    #status { white-space: pre-wrap; margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+
+    #err {
+      color: var(--bad);
+      background: rgba(239,68,68,.10);
+      border: 1px solid rgba(239,68,68,.25);
+      border-radius: 14px;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>NGSoftFM Web</h1>
+        <div class="sub">ローカル/遠隔（LAN・Tailscale）での FM 受信と再生</div>
+      </div>
+      <div class="badges">
+        <span class="badge"><span id="dotStream" class="dot"></span><span id="badgeStream">停止中</span></span>
+        <span class="badge"><span id="dotStereo" class="dot"></span><span id="badgeStereo">受信: 不明</span></span>
+        <span class="badge"><span class="dot warn"></span><span id="badgeDelivery">配信: -</span></span>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="grid">
+        <label class="span-3">
+          周波数 (MHz)
+          <input id="freq" type="number" step="0.001" value="80.0" inputmode="decimal" />
+        </label>
+
+        <label class="span-3">
+          プリセット
+          <select id="preset"></select>
+        </label>
+
+        <label class="span-3">
+          配信
+          <select id="delivery">
+            <option value="hls">HLS (推奨)</option>
+            <option value="direct">Direct</option>
+          </select>
+        </label>
+
+        <label class="span-3">
+          形式
+          <select id="fmt">
+            <option value="mp3">MP3</option>
+            <option value="aac">AAC</option>
+            <option value="opus">Opus</option>
+          </select>
+        </label>
+
+        <label class="span-3">
+          HLS kbps
+          <input id="hlsKbps" type="number" step="16" min="32" max="512" value="320" />
+        </label>
+
+        <label class="span-3">
+          バッファ (秒)
+          <input id="buf" type="number" step="0.5" min="0" max="60" value="2" />
+        </label>
+
+        <label class="span-3">
+          RTL ゲイン (dB)
+          <input id="gain" type="number" step="0.1" min="0" max="100" value="19.7" />
+        </label>
+
+        <label class="span-3">
+          RTL AGC
+          <select id="rtlAgc">
+            <option value="off">OFF</option>
+            <option value="on">ON</option>
+          </select>
+        </label>
+
+        <label class="span-3">
+          強制ステレオ
+          <select id="forceStereo">
+            <option value="off">OFF</option>
+            <option value="on">ON</option>
+          </select>
+        </label>
+
+        <div class="span-6 actions">
+          <button id="start" class="primary">受信</button>
+          <button id="stop" class="danger">停止</button>
+        </div>
+      </div>
+
+      <p class="hint">ChromeでAAC/Opusを安定再生したい場合はHLSを使います（内部で <code>/hls/stream.m3u8</code> を再生）。</p>
+
+      <div class="player">
+        <video id="audio" controls playsinline></video>
+      </div>
+
+      <div style="margin-top:14px">
+        <details>
+          <summary>局スキャン（受信可能な局を探して登録）</summary>
+          <div class="grid" style="margin-top:12px">
+            <label class="span-3">開始 MHz<input id="scanStart" type="number" step="0.1" value="76.0" /></label>
+            <label class="span-3">終了 MHz<input id="scanEnd" type="number" step="0.1" value="95.0" /></label>
+            <label class="span-3">刻み MHz<input id="scanStep" type="number" step="0.1" value="0.1" /></label>
+            <label class="span-3">滞在 ms<input id="scanDwell" type="number" step="100" value="600" /></label>
+            <label class="span-3">
+              しきい値
+              <select id="scanLevel">
+                <option value="strong">強電界（絞り込み強め）</option>
+                <option value="medium" selected>中電界（標準）</option>
+                <option value="weak">弱電界（絞り込み弱め）</option>
+              </select>
+            </label>
+            <div class="span-12 actions" style="justify-content:flex-start">
+              <button id="scanGo" class="primary">スキャン開始</button>
+              <button id="scanStop">スキャン停止</button>
+              <button id="scanAddAll">発見局を一括登録</button>
+              <span id="scanProgress" class="muted"></span>
+            </div>
+          </div>
+          <div id="scanResults" class="statusBox"></div>
+        </details>
+      </div>
+
+      <div id="err"></div>
+
+      <div class="statusBox">
+        <div class="statusLine">
+          <div>
+            <div class="statusTitle">接続先</div>
+            <div id="uiUrl" class="statusValue">-</div>
+          </div>
+          <button id="copyUrl" title="URLをコピー">コピー</button>
+        </div>
+
+        <details>
+          <summary>サーバ管理</summary>
+          <div class="grid" style="margin-top:12px">
+            <label class="span-6">
+              管理トークン（任意）
+              <input id="adminToken" type="password" placeholder="NGSOFTFM_ADMIN_TOKEN を設定している場合に入力" />
+            </label>
+            <div class="span-6 actions" style="justify-content:flex-start">
+              <button id="serverRestart" class="danger">サーバ再起動</button>
+              <span id="serverRestartHint" class="muted"></span>
+            </div>
+          </div>
+          <p class="hint">※ 再起動は配信/スキャンを停止し、プロセスを終了します。自動で起動し直すには監視スクリプト（例: <code>scripts/Start-Web.ps1</code>）で起動してください。</p>
+        </details>
+
+        <div class="statusLine">
+          <div>
+            <div class="statusTitle">受信状態</div>
+            <div id="rxinfo" class="statusValue">-</div>
+          </div>
+        </div>
+
+        <details>
+          <summary>詳細（/api/status）</summary>
+          <div id="status">(loading...)</div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // HLS playback:
+    // - Chrome/Edge: hls.js (MSE)
+    // - Safari: native HLS
+    // Try local copy first (/vendor/hls.js), then CDN.
+  </script>
+  <script src="/vendor/hls.js" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/hls.js@1'" ></script>
+  <script>
+    const elFreq = document.getElementById('freq');
+    const elPreset = document.getElementById('preset');
+    const elScanStart = document.getElementById('scanStart');
+    const elScanEnd = document.getElementById('scanEnd');
+    const elScanStep = document.getElementById('scanStep');
+    const elScanDwell = document.getElementById('scanDwell');
+    const elScanLevel = document.getElementById('scanLevel');
+    const elAdminToken = document.getElementById('adminToken');
+    const elServerRestart = document.getElementById('serverRestart');
+    const elServerRestartHint = document.getElementById('serverRestartHint');
+    const elScanGo = document.getElementById('scanGo');
+    const elScanStop = document.getElementById('scanStop');
+    const elScanAddAll = document.getElementById('scanAddAll');
+    const elScanProgress = document.getElementById('scanProgress');
+    const elScanResults = document.getElementById('scanResults');
+    const elDelivery = document.getElementById('delivery');
+    const elFmt = document.getElementById('fmt');
+    const elBuf = document.getElementById('buf');
+    const elHlsKbps = document.getElementById('hlsKbps');
+    const elGain = document.getElementById('gain');
+    const elRtlAgc = document.getElementById('rtlAgc');
+    const elForceStereo = document.getElementById('forceStereo');
+    const elStart = document.getElementById('start');
+    const elStop = document.getElementById('stop');
+    const elAudio = document.getElementById('audio');
+    const elStatus = document.getElementById('status');
+    const elRxInfo = document.getElementById('rxinfo');
+    const elErr = document.getElementById('err');
+    const elUiUrl = document.getElementById('uiUrl');
+    const elCopyUrl = document.getElementById('copyUrl');
+    const elDotStream = document.getElementById('dotStream');
+    const elBadgeStream = document.getElementById('badgeStream');
+    const elDotStereo = document.getElementById('dotStereo');
+    const elBadgeStereo = document.getElementById('badgeStereo');
+    const elBadgeDelivery = document.getElementById('badgeDelivery');
+
+    let hls = null;
+    let isBusy = false;
+    let lastScanResults = [];
+
+    function setError(msg) {
+      const t = msg ? String(msg) : '';
+      elErr.textContent = t;
+      elErr.style.display = t ? '' : 'none';
+    }
+
+    function setBusy(v) {
+      isBusy = !!v;
+      elStart.disabled = isBusy;
+      // Stop is usually safe, but avoid double-click storms while starting.
+      elStop.disabled = isBusy;
+      if (isBusy) {
+        elStart.textContent = '受信中...';
+      } else {
+        elStart.textContent = '受信';
+      }
+    }
+
+    function setBadgeStreaming(streaming) {
+      const on = !!streaming;
+      elDotStream.className = 'dot ' + (on ? 'good' : '');
+      elBadgeStream.textContent = on ? '配信中' : '停止中';
+    }
+
+    function setBadgeStereo(stereoDetected) {
+      if (typeof stereoDetected !== 'boolean') {
+        elDotStereo.className = 'dot';
+        elBadgeStereo.textContent = '受信: 不明';
+        return;
+      }
+      elDotStereo.className = 'dot ' + (stereoDetected ? 'good' : 'warn');
+      elBadgeStereo.textContent = stereoDetected ? '受信: STEREO' : '受信: MONO';
+    }
+
+    function updateUiUrl() {
+      try {
+        const url = new URL(window.location.href);
+        url.hash = '';
+        url.search = '';
+        elUiUrl.textContent = url.toString();
+      } catch {
+        elUiUrl.textContent = window.location.href;
+      }
+    }
+
+    function canPlayDirectFormat(fmt) {
+      fmt = String(fmt || '').toLowerCase();
+      if (fmt === 'mp3') return !!elAudio.canPlayType('audio/mpeg');
+      return false;
+    }
+
+    function applyFormatSupportUI() {
+      const options = Array.from(elFmt.options || []);
+      for (const opt of options) {
+        // For simplicity: direct supports MP3 only; AAC/Opus are intended via HLS.
+        const ok = (opt.value === 'mp3') || (opt.value === 'aac') || (opt.value === 'opus');
+        opt.disabled = !ok;
+        if (!ok) {
+          opt.textContent = opt.textContent.replace(' (非対応)', '') + ' (非対応)';
+        }
+      }
+
+      applyDeliveryUI();
+    }
+
+    function applyDeliveryUI() {
+      const delivery = String(elDelivery.value || 'hls');
+      const isHls = (delivery === 'hls');
+
+      // HLS bitrate control only relevant in HLS mode.
+      elHlsKbps.closest('label').style.display = isHls ? '' : 'none';
+
+      if (isHls) {
+        // For now, HLS outputs AAC.
+        elFmt.value = 'aac';
+        elFmt.disabled = true;
+      } else {
+        elFmt.disabled = false;
+        if (!canPlayDirectFormat(elFmt.value)) {
+          elFmt.value = 'mp3';
+        }
+      }
+    }
+
+    async function api(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body ?? {})
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`${res.status} ${t}`);
+      }
+      return res.json();
+    }
+
+    async function apiPostWithAdminToken(path, body) {
+      const token = String((elAdminToken && elAdminToken.value) ? elAdminToken.value : '').trim();
+      const headers = { 'content-type': 'application/json' };
+      if (token) {
+        headers['X-Admin-Token'] = token;
+      }
+      const res = await fetch(path, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body ?? {})
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`${res.status} ${t}`);
+      }
+      return res.json();
+    }
+
+    async function serverRestart() {
+      const ok = confirm('サーバを再起動します。\n配信/スキャンは停止し、数秒間アクセスできなくなります。\n実行しますか？');
+      if (!ok) return;
+
+      if (elServerRestartHint) elServerRestartHint.textContent = '再起動要求を送信中…';
+      try {
+        await apiPostWithAdminToken('/api/server/restart', {});
+      } catch (e) {
+        // サーバが即時終了すると fetch が失敗することがあるので、その場合も続行。
+        if (elServerRestartHint) elServerRestartHint.textContent = '再起動中…（応答なし）';
+      }
+
+      if (elServerRestartHint) elServerRestartHint.textContent = '再起動中… 5秒後に再読み込みします';
+      setTimeout(() => location.reload(), 5000);
+    }
+
+    function setPresetOptions(presetsMHz) {
+      const list = Array.isArray(presetsMHz) ? presetsMHz : [];
+      elPreset.innerHTML = '';
+      const opt0 = document.createElement('option');
+      opt0.value = '';
+      opt0.textContent = '選択…';
+      elPreset.appendChild(opt0);
+
+      if (!list.length) {
+        const optE = document.createElement('option');
+        optE.value = '';
+        optE.textContent = '(登録なし)';
+        optE.disabled = true;
+        elPreset.appendChild(optE);
+        return;
+      }
+
+      for (const v of list) {
+        const s = String(v);
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s + ' MHz';
+        elPreset.appendChild(opt);
+      }
+    }
+
+    async function loadPresets() {
+      try {
+        const res = await fetch('/api/presets');
+        const json = await res.json();
+        setPresetOptions(json ? json.presetsMHz : []);
+      } catch {
+        // ignore
+      }
+    }
+
+    async function scanStart() {
+      const startMHz = Number(elScanStart.value);
+      const endMHz = Number(elScanEnd.value);
+      const stepMHz = Number(elScanStep.value);
+      const dwellMs = Number(elScanDwell.value);
+      if (!Number.isFinite(startMHz) || !Number.isFinite(endMHz) || !Number.isFinite(stepMHz) || !Number.isFinite(dwellMs)) {
+        setError('スキャン条件が不正です');
+        return;
+      }
+      try {
+        await api('/api/scan/start', { startMHz, endMHz, stepMHz, dwellMs });
+        setError('');
+      } catch (e) {
+        setError(e);
+      }
+    }
+
+    async function scanStop() {
+      try {
+        await api('/api/scan/stop', {});
+      } catch {}
+    }
+
+    function renderScanResults(status) {
+      const running = !!(status && status.running);
+      const done = Number(status && status.done);
+      const total = Number(status && status.total);
+      const err = status && status.error ? String(status.error) : '';
+      let curText = '';
+      if (running) {
+        const startMHz = Number(elScanStart.value);
+        const stepMHz = Number(elScanStep.value);
+        if (Number.isFinite(startMHz) && Number.isFinite(stepMHz) && Number.isFinite(done)) {
+          const curMHz = startMHz + (done * stepMHz);
+          if (Number.isFinite(curMHz)) {
+            curText = curMHz.toFixed(1);
+          }
+        }
+      }
+
+      elScanProgress.textContent = running
+        ? (curText ? `進行中: ${curText} MHz (${done}/${total})` : `進行中: (${done}/${total})`)
+        : (total ? `完了: ${done}/${total}` : '');
+      if (err) elScanProgress.textContent += ` / error: ${err}`;
+
+      const results = (status && Array.isArray(status.results)) ? status.results : [];
+      lastScanResults = results;
+      if (!results.length) {
+        elScanResults.innerHTML = '<div class="statusLine"><div class="statusTitle">結果</div><div class="statusValue muted">(まだありません)</div></div>';
+        return;
+      }
+
+      let html = '';
+      // Simple table-like list.
+      for (const r of results.slice(0, 80)) {
+        const f = String(r.freqMHz || '');
+        const ifDb = (typeof r.ifDb === 'number') ? r.ifDb.toFixed(1) : '-';
+        const bbDb = (typeof r.bbDb === 'number') ? r.bbDb.toFixed(1) : '-';
+        const auDb = (typeof r.audioDb === 'number') ? r.audioDb.toFixed(1) : '-';
+        const st = (r.stereo === true) ? 'ST' : 'MO?';
+        html += `<div class="statusLine">
+          <div style="min-width:220px">
+            <div class="statusTitle">${f} MHz</div>
+            <div class="statusValue">IF ${ifDb} / BB ${bbDb} / audio ${auDb} / ${st}</div>
+          </div>
+          <div class="row">
+            <button data-add="${f}">登録</button>
+          </div>
+        </div>`;
+      }
+      elScanResults.innerHTML = html;
+
+      // Wire add buttons.
+      for (const btn of elScanResults.querySelectorAll('button[data-add]')) {
+        btn.addEventListener('click', async (ev) => {
+          const mhz = String(ev.currentTarget.getAttribute('data-add') || '');
+          const v = Number(mhz);
+          if (!Number.isFinite(v)) return;
+          try {
+            await api('/api/presets/add', { freqMHz: v });
+            await loadPresets();
+            setError('');
+          } catch (e) {
+            setError(e);
+          }
+        });
+      }
+    }
+
+    // Persist admin token locally (optional).
+    try {
+      const saved = localStorage.getItem('adminToken') || '';
+      if (elAdminToken && saved) elAdminToken.value = saved;
+      if (elAdminToken) {
+        elAdminToken.addEventListener('input', () => {
+          try { localStorage.setItem('adminToken', String(elAdminToken.value || '')); } catch { }
+        });
+      }
+    } catch { }
+
+    if (elServerRestart) {
+      elServerRestart.addEventListener('click', () => { serverRestart(); });
+    }
+
+    async function refreshScanStatus() {
+      try {
+        const level = String(elScanLevel && elScanLevel.value ? elScanLevel.value : 'medium');
+        const res = await fetch('/api/scan/status?level=' + encodeURIComponent(level));
+        const json = await res.json();
+        renderScanResults(json);
+      } catch {
+        // ignore
+      }
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch('/api/status');
+        const json = await res.json();
+
+        // Human-friendly RX info.
+        let stereoText = '不明';
+        if (json && typeof json.stereoDetected === 'boolean') {
+          stereoText = json.stereoDetected ? 'STEREO' : 'MONO';
+        }
+        let pilotText = '';
+        if (json && typeof json.pilotLevel === 'number') {
+          pilotText = ` / pilot=${json.pilotLevel.toFixed(6)}`;
+        }
+        elRxInfo.textContent = `受信: ${stereoText}${pilotText}`;
+
+        setBadgeStreaming(!!(json && json.streaming));
+        setBadgeStereo(json ? json.stereoDetected : null);
+        if (json && json.delivery) {
+          elBadgeDelivery.textContent = '配信: ' + String(json.delivery).toUpperCase();
+        }
+
+        elStatus.textContent = JSON.stringify(json, null, 2);
+        if (json && json.lastError) {
+          setError(json.lastError);
+        }
+      } catch (e) {
+        elStatus.textContent = String(e);
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const json = await res.json();
+        if (json && json.delivery) elDelivery.value = String(json.delivery);
+        if (json && json.format) elFmt.value = String(json.format);
+        if (json && typeof json.bufferSeconds === 'number') elBuf.value = String(json.bufferSeconds);
+        if (json && typeof json.hlsBitrateKbps === 'number') elHlsKbps.value = String(json.hlsBitrateKbps);
+        if (json && typeof json.rtlGainDb === 'number') elGain.value = String(json.rtlGainDb);
+        if (json && typeof json.rtlAgc === 'boolean') elRtlAgc.value = json.rtlAgc ? 'on' : 'off';
+        if (json && typeof json.forceStereo === 'boolean') elForceStereo.value = json.forceStereo ? 'on' : 'off';
+      } catch (e) {
+        // ignore
+      }
+
+      applyFormatSupportUI();
+    }
+
+    elPreset.addEventListener('change', () => {
+      const v = String(elPreset.value || '').trim();
+      if (!v) return;
+      const mhz = Number(v);
+      if (!Number.isFinite(mhz)) return;
+      elFreq.value = mhz.toFixed(1);
+    });
+
+    elScanGo.addEventListener('click', scanStart);
+    elScanStop.addEventListener('click', scanStop);
+
+    elScanAddAll.addEventListener('click', async () => {
+      try {
+        const list = Array.isArray(lastScanResults) ? lastScanResults : [];
+        const mhzList = list
+          .map(r => Number(r && r.freqMHz))
+          .filter(v => Number.isFinite(v));
+        if (!mhzList.length) {
+          setError('登録できる発見局がありません');
+          return;
+        }
+        await api('/api/presets/addMany', { freqMHzList: mhzList });
+        await loadPresets();
+        setError('');
+      } catch (e) {
+        setError(e);
+      }
+    });
+
+    async function saveConfig() {
+      const delivery = String(elDelivery.value || 'hls');
+      const fmt = String(elFmt.value || 'mp3');
+      if (delivery !== 'hls' && !canPlayDirectFormat(fmt)) {
+        setError('Direct配信はMP3のみ対応です（AAC/OpusはHLSを選んでください）');
+        return;
+      }
+      const bufferSeconds = Number(elBuf.value);
+      if (!Number.isFinite(bufferSeconds) || bufferSeconds < 0 || bufferSeconds > 60) {
+        setError('バッファ(秒)は 0〜60 の範囲で指定してください');
+        return;
+      }
+
+      const hlsBitrateKbps = Number(elHlsKbps.value);
+      if (!Number.isFinite(hlsBitrateKbps) || hlsBitrateKbps < 32 || hlsBitrateKbps > 512) {
+        setError('HLS kbps は 32〜512 の範囲で指定してください');
+        return;
+      }
+
+      const rtlGainDb = Number(elGain.value);
+      if (!Number.isFinite(rtlGainDb) || rtlGainDb < 0 || rtlGainDb > 100) {
+        setError('RTL ゲイン(dB)は 0〜100 の範囲で指定してください');
+        return;
+      }
+
+      const rtlAgc = (String(elRtlAgc.value || 'off') === 'on');
+      const forceStereo = (String(elForceStereo.value || 'off') === 'on');
+
+      try {
+        await api('/api/config', { delivery, format: fmt, bufferSeconds, hlsBitrateKbps, rtlGainDb, rtlAgc, forceStereo });
+      } catch (e) {
+        setError(e);
+      }
+    }
+
+    async function waitForHlsReady(timeoutMs) {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        try {
+          const res = await fetch('/api/hls/ready');
+          const json = await res.json();
+          if (json && json.ready) return true;
+        } catch (e) {
+          // ignore
+        }
+        await new Promise(r => setTimeout(r, 250));
+      }
+      return false;
+    }
+
+    function stopPlayback() {
+      try {
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+      } catch {}
+      elAudio.pause();
+      elAudio.removeAttribute('src');
+      elAudio.load();
+    }
+
+    async function playHls() {
+      setError('HLSを準備中...');
+      const ok = await waitForHlsReady(8000);
+      if (!ok) {
+        throw new Error('HLSの準備が完了しませんでした（m3u8が生成されていない可能性）');
+      }
+
+      const url = '/hls/stream.m3u8?ts=' + Date.now();
+
+      stopPlayback();
+
+      // Prefer hls.js when available (Chrome/Edge). Do NOT try "native" HLS on Chrome.
+      if (window.Hls && window.Hls.isSupported()) {
+        hls = new window.Hls({
+          // keep startup latency low
+          liveSyncDurationCount: 2,
+          liveMaxLatencyDurationCount: 6,
+        });
+        hls.loadSource(url);
+        hls.attachMedia(elAudio);
+        await new Promise((resolve, reject) => {
+          const onErr = (event, data) => {
+            if (data && data.fatal) {
+              const detail = (data.details ? String(data.details) : '');
+              const reason = (data.reason ? String(data.reason) : '');
+              reject(new Error('HLS fatal error: ' + data.type + (detail ? ' / ' + detail : '') + (reason ? ' / ' + reason : '')));
+            }
+          };
+          hls.on(window.Hls.Events.MANIFEST_PARSED, resolve);
+          hls.on(window.Hls.Events.ERROR, onErr);
+        });
+        await elAudio.play();
+        setError('');
+        return;
+      }
+
+      // Safari can play HLS natively.
+      const ua = navigator.userAgent || '';
+      const isSafari = /Safari\//.test(ua) && !/Chrome\//.test(ua) && !/Chromium\//.test(ua) && !/Edg\//.test(ua);
+      if (isSafari && elAudio.canPlayType('application/vnd.apple.mpegurl')) {
+        elAudio.src = url;
+        elAudio.load();
+        await elAudio.play();
+        setError('');
+        return;
+      }
+
+      if (!window.Hls) {
+        throw new Error('hls.js が読み込めていません（/vendor/hls.js か CDN へのアクセスが必要です）');
+      }
+      throw new Error('このブラウザはHLSを再生できません（MSE非対応の可能性）');
+    }
+
+    elStart.addEventListener('click', async () => {
+      if (isBusy) return;
+      setError('');
+      const mhz = Number(elFreq.value);
+      if (!Number.isFinite(mhz) || mhz <= 0) {
+        setError('周波数(MHz)が不正です');
+        return;
+      }
+
+      setBusy(true);
+
+      await saveConfig();
+      if (elErr.textContent) {
+        setBusy(false);
+        await refresh();
+        return;
+      }
+
+      try {
+        await api('/api/start', { freqMHz: mhz });
+      } catch (e) {
+        setError(e);
+        setBusy(false);
+        await refresh();
+        return;
+      }
+
+      const delivery = String(elDelivery.value || 'hls');
+      const fmt = String(elFmt.value || 'mp3');
+
+      try {
+        if (delivery === 'hls') {
+          await playHls();
+        } else {
+          // Direct stream
+          stopPlayback();
+          elAudio.src = '/stream?fmt=' + encodeURIComponent(fmt) + '&ts=' + Date.now();
+          elAudio.load();
+          await elAudio.play();
+        }
+      } catch (e) {
+        setError(e);
+      }
+      setBusy(false);
+      await refresh();
+    });
+
+    elDelivery.addEventListener('change', () => {
+      setError('');
+      applyDeliveryUI();
+    });
+
+    elStop.addEventListener('click', async () => {
+      if (isBusy) return;
+      setError('');
+      try {
+        await api('/api/stop');
+      } catch (e) {
+        setError(e);
+      }
+      stopPlayback();
+      await refresh();
+    });
+
+    elCopyUrl.addEventListener('click', async () => {
+      updateUiUrl();
+      const txt = elUiUrl.textContent || '';
+      try {
+        await navigator.clipboard.writeText(txt);
+      } catch {
+        // Fallback
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = txt;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        } catch {}
+      }
+    });
+
+    // Ensure we start from a stopped state on page load.
+    elAudio.pause();
+    elAudio.removeAttribute('src');
+    elAudio.load();
+    fetch('/api/stop', { method: 'POST' }).catch(() => {});
+    updateUiUrl();
+    loadPresets();
+    loadConfig();
+    refresh();
+    setInterval(refresh, 2000);
+    setInterval(refreshScanStatus, 800);
+
+    // Stop stream when leaving/reloading the page (best-effort).
+    window.addEventListener('beforeunload', () => {
+      try { navigator.sendBeacon('/api/stop', ''); } catch {}
+    });
+  </script>
+</body>
+</html>

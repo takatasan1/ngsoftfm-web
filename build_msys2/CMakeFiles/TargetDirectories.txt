@@ -1,0 +1,9 @@
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/sfmbase.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/sfmrtlsdr.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/softfm.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/edit_cache.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/rebuild_cache.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/list_install_components.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/install.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/install/local.dir
+C:/Users/matsu/source/repos/NGSoftFM/ngsoftfm/build_msys2/CMakeFiles/install/strip.dir
