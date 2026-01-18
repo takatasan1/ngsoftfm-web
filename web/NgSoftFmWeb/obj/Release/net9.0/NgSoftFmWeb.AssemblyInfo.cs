@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NgSoftFmWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2d139a53262cb2df733077a41283e0f82f58cfc8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b166fae6eac9a9ff9452ec97d1257445fb385455")]
 [assembly: System.Reflection.AssemblyProductAttribute("NgSoftFmWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NgSoftFmWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

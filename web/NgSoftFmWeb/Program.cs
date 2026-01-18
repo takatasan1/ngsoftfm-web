@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using System.Text.Json.Serialization;
@@ -10,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var hlsRoot = Path.Combine(Path.GetTempPath(), "NgSoftFmWeb", "hls");
 Directory.CreateDirectory(hlsRoot);
-builder.Services.AddSingleton(_ => new RadioService(hlsRoot));
+builder.Services.AddSingleton(_ => new RadioService(hlsRoot, builder.Environment.ContentRootPath));
 
 var app = builder.Build();
 
@@ -115,7 +116,26 @@ app.MapPost("/api/presets/add", (PresetAddRequest body, RadioService radio) =>
 		return Results.BadRequest(new { error = "freqMHz out of range" });
 	}
 
-	radio.AddPresetMHz(body.FreqMHz.Value);
+	radio.AddPreset(body.FreqMHz.Value, body.Name);
+	return Results.Ok(radio.GetPresets());
+});
+
+app.MapPost("/api/presets/update", (PresetUpdateRequest body, RadioService radio) =>
+{
+	if (body.FreqMHz is null)
+	{
+		return Results.BadRequest(new { error = "Provide freqMHz" });
+	}
+	if (body.FreqMHz < 10 || body.FreqMHz > 3000)
+	{
+		return Results.BadRequest(new { error = "freqMHz out of range" });
+	}
+	if (body.Name is null)
+	{
+		return Results.BadRequest(new { error = "Provide name" });
+	}
+
+	radio.UpdatePresetName(body.FreqMHz.Value, body.Name);
 	return Results.Ok(radio.GetPresets());
 });
 
@@ -132,7 +152,7 @@ app.MapPost("/api/presets/addMany", (PresetAddManyRequest body, RadioService rad
 	{
 		if (!double.IsFinite(mhz)) continue;
 		if (mhz < 10 || mhz > 3000) continue;
-		radio.AddPresetMHz(mhz);
+		radio.AddPreset(mhz, "-");
 		added++;
 	}
 	return Results.Ok(new { added, presets = radio.GetPresets() });
@@ -144,7 +164,7 @@ app.MapPost("/api/presets/remove", (PresetAddRequest body, RadioService radio) =
 	{
 		return Results.BadRequest(new { error = "Provide freqMHz" });
 	}
-	radio.RemovePresetMHz(body.FreqMHz.Value);
+	radio.RemovePreset(body.FreqMHz.Value);
 	return Results.Ok(radio.GetPresets());
 });
 
@@ -236,13 +256,21 @@ app.MapPost("/api/config", (ConfigRequest body, RadioService radio) =>
 		// boolean; nothing else to validate
 	}
 
+	if (body.StereoMode is not null)
+	{
+		if (!RadioService.IsSupportedStereoMode(body.StereoMode))
+		{
+			return Results.BadRequest(new { error = "stereoMode must be one of: auto, stereo, mono" });
+		}
+	}
+
 	if (body.ForceStereo is not null)
 	{
 		// boolean; nothing else to validate
 	}
 
 	// Update streaming config and force any active stream to restart.
-	radio.SetStreamingConfig(body.Format, body.BufferSeconds, body.Delivery, body.HlsBitrateKbps, body.RtlGainDb, body.RtlAgc, body.ForceStereo, restartActiveStream: true);
+	radio.SetStreamingConfig(body.Format, body.BufferSeconds, body.Delivery, body.HlsBitrateKbps, body.RtlGainDb, body.RtlAgc, body.StereoMode, body.ForceStereo, restartActiveStream: true);
 	radio.EnsureDeliveryStarted();
 	return Results.Ok(radio.GetConfig());
 });
@@ -358,6 +386,10 @@ internal sealed class ConfigRequest
 	[JsonPropertyName("rtlAgc")]
 	public bool? RtlAgc { get; set; }
 
+	// auto | stereo | mono
+	[JsonPropertyName("stereoMode")]
+	public string? StereoMode { get; set; }
+
 	// Force stereo output even without pilot lock (requires softfm.exe with --force-stereo).
 	[JsonPropertyName("forceStereo")]
 	public bool? ForceStereo { get; set; }
@@ -379,6 +411,18 @@ internal sealed class PresetAddRequest
 {
 	[JsonPropertyName("freqMHz")]
 	public double? FreqMHz { get; set; }
+
+	[JsonPropertyName("name")]
+	public string? Name { get; set; }
+}
+
+internal sealed class PresetUpdateRequest
+{
+	[JsonPropertyName("freqMHz")]
+	public double? FreqMHz { get; set; }
+
+	[JsonPropertyName("name")]
+	public string? Name { get; set; }
 }
 
 internal sealed class PresetAddManyRequest
@@ -404,6 +448,13 @@ internal sealed class ScanStartRequest
 
 internal sealed class RadioService
 {
+	private enum StereoMode
+	{
+		Auto = 0,
+		ForceStereo = 1,
+		Mono = 2,
+	}
+
 	private readonly object _gate = new();
 	private readonly string _hlsRoot;
 	private long _freqHz = 80_000_000;
@@ -420,11 +471,12 @@ internal sealed class RadioService
 	private int _hlsBitrateKbps = 320;
 	private double? _rtlGainDb = 19.7; // default: max (typical RTL-SDR value), null = auto
 	private bool _rtlAgc = false;
-	private bool _forceStereo = false;
+	private StereoMode _stereoMode = StereoMode.Auto;
 	private CancellationTokenSource? _hlsCts;
 	private Task? _hlsTask;
 	private bool _hlsRestartQueued;
-	private readonly List<long> _presetHz = new();
+	private readonly List<PresetItem> _presets = new();
+	private readonly string _presetsFilePath;
 
 	private CancellationTokenSource? _scanCts;
 	private Task? _scanTask;
@@ -434,49 +486,236 @@ internal sealed class RadioService
 	private readonly List<ScanResult> _scanResults = new();
 	private string? _scanError;
 
-	public RadioService(string hlsRoot)
+	private sealed class PresetsFile
+	{
+		[JsonPropertyName("presets")]
+		public PresetWire[]? Presets { get; set; }
+
+		[JsonPropertyName("presetsMHz")]
+		public string[]? PresetsMHz { get; set; }
+	}
+
+	private sealed class PresetWire
+	{
+		[JsonPropertyName("freqMHz")]
+		public string? FreqMHz { get; set; }
+
+		[JsonPropertyName("name")]
+		public string? Name { get; set; }
+	}
+
+	private sealed class PresetItem
+	{
+		public long Hz { get; set; }
+		public string Name { get; set; } = "-";
+	}
+
+	public RadioService(string hlsRoot, string contentRoot)
 	{
 		_hlsRoot = hlsRoot;
+		_presetsFilePath = Path.Combine(string.IsNullOrWhiteSpace(contentRoot) ? AppContext.BaseDirectory : contentRoot, "presets.json");
 		Directory.CreateDirectory(_hlsRoot);
-		// Start with no presets; users can register from scan results.
+		TryLoadPresetsFromDisk();
+	}
+
+	private void TryLoadPresetsFromDisk()
+	{
+		try
+		{
+			if (!File.Exists(_presetsFilePath))
+			{
+				return;
+			}
+
+			var json = File.ReadAllText(_presetsFilePath, Encoding.UTF8);
+			var file = JsonSerializer.Deserialize<PresetsFile>(json);
+
+			var items = new List<PresetItem>();
+			const long QuantumHz = 100_000;
+
+			var wires = file?.Presets;
+			if (wires is not null && wires.Length > 0)
+			{
+				foreach (var w in wires)
+				{
+					var s = (w?.FreqMHz ?? string.Empty).Trim();
+					if (s.Length == 0) continue;
+					if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var mhz)) continue;
+					if (!double.IsFinite(mhz)) continue;
+					if (mhz < 10 || mhz > 3000) continue;
+					var hz = (long)Math.Round(mhz * 1_000_000.0);
+					hz = (long)Math.Round(hz / (double)QuantumHz) * QuantumHz;
+
+					var name = NormalizePresetName(w?.Name);
+					items.Add(new PresetItem { Hz = hz, Name = name });
+				}
+			}
+			else
+			{
+				// Back-compat: older file format (presetsMHz only)
+				var mhzList = file?.PresetsMHz ?? Array.Empty<string>();
+				foreach (var s0 in mhzList)
+				{
+					var s = (s0 ?? string.Empty).Trim();
+					if (s.Length == 0) continue;
+					if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var mhz)) continue;
+					if (!double.IsFinite(mhz)) continue;
+					if (mhz < 10 || mhz > 3000) continue;
+					var hz = (long)Math.Round(mhz * 1_000_000.0);
+					hz = (long)Math.Round(hz / (double)QuantumHz) * QuantumHz;
+					items.Add(new PresetItem { Hz = hz, Name = "-" });
+				}
+			}
+
+			items = items
+				.GroupBy(p => p.Hz)
+				.Select(g =>
+				{
+					var best = g.First();
+					// Prefer a non-placeholder name when duplicates exist
+					var named = g.FirstOrDefault(x => !string.Equals(x.Name, "-", StringComparison.Ordinal));
+					return named ?? best;
+				})
+				.OrderBy(p => p.Hz)
+				.ToList();
+
+			lock (_gate)
+			{
+				_presets.Clear();
+				_presets.AddRange(items);
+			}
+		}
+		catch
+		{
+			// Ignore corrupt/unreadable presets file.
+		}
+	}
+
+	private void TrySavePresetsToDisk()
+	{
+		try
+		{
+			PresetWire[] presets;
+			string[] mhz;
+			lock (_gate)
+			{
+				presets = _presets
+					.OrderBy(p => p.Hz)
+					.Select(p => new PresetWire
+					{
+						FreqMHz = (p.Hz / 1_000_000.0).ToString("0.0", CultureInfo.InvariantCulture),
+						Name = p.Name,
+					})
+					.ToArray();
+				mhz = presets.Select(p => p.FreqMHz ?? string.Empty).Where(s => s.Length != 0).ToArray();
+			}
+
+			var payload = new PresetsFile { Presets = presets, PresetsMHz = mhz };
+			var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+			var tmp = _presetsFilePath + ".tmp";
+			File.WriteAllText(tmp, json, Encoding.UTF8);
+			File.Move(tmp, _presetsFilePath, true);
+		}
+		catch
+		{
+			// Best-effort persistence.
+		}
 	}
 
 	public object GetPresets()
 	{
 		lock (_gate)
 		{
-			// Return MHz values as strings to avoid floating point JSON surprises.
-			var mhz = _presetHz
-				.Select(hz => (hz / 1_000_000.0).ToString("0.0", CultureInfo.InvariantCulture))
+			var presets = _presets
+				.OrderBy(p => p.Hz)
+				.Select(p => new
+				{
+					freqMHz = (p.Hz / 1_000_000.0).ToString("0.0", CultureInfo.InvariantCulture),
+					name = p.Name,
+				})
 				.ToArray();
-			return new { presetsMHz = mhz };
+			var mhz = presets.Select(p => (string)p.freqMHz).ToArray();
+			return new { presets, presetsMHz = mhz };
 		}
 	}
 
-	public void AddPresetMHz(double mhz)
+	private static string NormalizePresetName(string? name)
+	{
+		var n = (name ?? string.Empty).Trim();
+		if (n.Length == 0) n = "-";
+		if (n.Length > 64) n = n[..64];
+		// Avoid newlines in list UI.
+		n = n.Replace("\r", " ").Replace("\n", " ");
+		return n;
+	}
+
+	public void AddPreset(double mhz, string? name)
 	{
 		var hz = (long)Math.Round(mhz * 1_000_000.0);
 		const long QuantumHz = 100_000;
 		hz = (long)Math.Round(hz / (double)QuantumHz) * QuantumHz;
+		var n = NormalizePresetName(name);
+		var changed = false;
 		lock (_gate)
 		{
-			if (!_presetHz.Contains(hz))
+			var existing = _presets.FirstOrDefault(p => p.Hz == hz);
+			if (existing is null)
 			{
-				_presetHz.Add(hz);
-				_presetHz.Sort();
+				_presets.Add(new PresetItem { Hz = hz, Name = n });
+				_presets.Sort((a, b) => a.Hz.CompareTo(b.Hz));
+				changed = true;
+			}
+			else
+			{
+				// If the existing name is a placeholder, allow upgrading it.
+				if (string.Equals(existing.Name, "-", StringComparison.Ordinal) && !string.Equals(n, "-", StringComparison.Ordinal))
+				{
+					existing.Name = n;
+					changed = true;
+				}
 			}
 		}
+		if (changed) TrySavePresetsToDisk();
 	}
 
-	public void RemovePresetMHz(double mhz)
+	public void UpdatePresetName(double mhz, string name)
 	{
 		var hz = (long)Math.Round(mhz * 1_000_000.0);
 		const long QuantumHz = 100_000;
 		hz = (long)Math.Round(hz / (double)QuantumHz) * QuantumHz;
+		var n = NormalizePresetName(name);
+		var changed = false;
 		lock (_gate)
 		{
-			_presetHz.RemoveAll(x => x == hz);
+			var existing = _presets.FirstOrDefault(p => p.Hz == hz);
+			if (existing is null)
+			{
+				_presets.Add(new PresetItem { Hz = hz, Name = n });
+				_presets.Sort((a, b) => a.Hz.CompareTo(b.Hz));
+				changed = true;
+			}
+			else if (!string.Equals(existing.Name, n, StringComparison.Ordinal))
+			{
+				existing.Name = n;
+				changed = true;
+			}
 		}
+		if (changed) TrySavePresetsToDisk();
+	}
+
+	public void RemovePreset(double mhz)
+	{
+		var hz = (long)Math.Round(mhz * 1_000_000.0);
+		const long QuantumHz = 100_000;
+		hz = (long)Math.Round(hz / (double)QuantumHz) * QuantumHz;
+		var changed = false;
+		lock (_gate)
+		{
+			var before = _presets.Count;
+			_presets.RemoveAll(p => p.Hz == hz);
+			changed = _presets.Count != before;
+		}
+		if (changed) TrySavePresetsToDisk();
 	}
 
 	public object GetScanStatus(bool raw = false, string? thresholdLevel = null)
@@ -730,15 +969,15 @@ internal sealed class RadioService
 		double? tunedFreqMHz = null;
 		var debug = string.Equals(Environment.GetEnvironmentVariable("NGSOFTFM_DEBUG_SCAN"), "1", StringComparison.OrdinalIgnoreCase);
 
-		// Use the same gain/AGC/forceStereo settings.
+		// Use the same gain/AGC/stereoMode settings.
 		double? rtlGainDb;
 		bool rtlAgc;
-		bool forceStereo;
+		StereoMode stereoMode;
 		lock (_gate)
 		{
 			rtlGainDb = _rtlGainDb;
 			rtlAgc = _rtlAgc;
-			forceStereo = _forceStereo;
+			stereoMode = _stereoMode;
 		}
 
 		var repoRoot = FindRepoRoot();
@@ -754,7 +993,7 @@ internal sealed class RadioService
 			StartInfo = new ProcessStartInfo
 			{
 				FileName = softfmPath,
-				Arguments = $"{(forceStereo ? "--force-stereo " : string.Empty)}-t rtlsdr -r 48000 -c \"{BuildRtlSdrConfig(freqHz, rtlGainDb, rtlAgc)}\" -R -",
+				Arguments = $"{BuildStereoArgs(stereoMode)}-t rtlsdr -r 48000 -c \"{BuildRtlSdrConfig(freqHz, rtlGainDb, rtlAgc)}\" -R -",
 				UseShellExecute = false,
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
@@ -962,9 +1201,14 @@ internal sealed class RadioService
 
 		lock (_gate)
 		{
-			_presetHz.Clear();
-			_presetHz.AddRange(list);
+			_presets.Clear();
+			foreach (var hz in list)
+			{
+				_presets.Add(new PresetItem { Hz = hz, Name = "-" });
+			}
+			_presets.Sort((a, b) => a.Hz.CompareTo(b.Hz));
 		}
+		TrySavePresetsToDisk();
 	}
 
 	public bool IsHlsReady(out string? reason)
@@ -1004,6 +1248,7 @@ internal sealed class RadioService
 
 	public void SetFrequencyHz(long freqHz, bool restartActiveStream)
 	{
+		var cleanupHls = false;
 		lock (_gate)
 		{
 			_freqHz = freqHz;
@@ -1016,7 +1261,12 @@ internal sealed class RadioService
 				try { _streamCts?.Cancel(); } catch { }
 				// Restart HLS too; otherwise the running softfm keeps the old frequency.
 				try { _hlsCts?.Cancel(); } catch { }
+				cleanupHls = true;
 			}
+		}
+		if (cleanupHls)
+		{
+			CleanupHlsFolder();
 		}
 	}
 
@@ -1028,6 +1278,12 @@ internal sealed class RadioService
 		{
 			var hlsRunning = _hlsTask is not null && !_hlsTask.IsCompleted;
 			var scanRunning = _scanTask is not null && !_scanTask.IsCompleted;
+			var stereoMode = _stereoMode switch
+			{
+				StereoMode.Mono => "mono",
+				StereoMode.ForceStereo => "stereo",
+				_ => "auto",
+			};
 			return new
 			{
 				freqHz = _freqHz,
@@ -1041,6 +1297,8 @@ internal sealed class RadioService
 				stereoUpdatedUtc = _stereoUpdatedUtc,
 				lastError = _lastError,
 				delivery = _delivery,
+				stereoMode,
+				forceStereo = _stereoMode == StereoMode.ForceStereo,
 			};
 		}
 	}
@@ -1049,6 +1307,12 @@ internal sealed class RadioService
 	{
 		lock (_gate)
 		{
+			var stereoMode = _stereoMode switch
+			{
+				StereoMode.Mono => "mono",
+				StereoMode.ForceStereo => "stereo",
+				_ => "auto",
+			};
 			return new
 			{
 				delivery = _delivery,
@@ -1057,14 +1321,16 @@ internal sealed class RadioService
 				hlsBitrateKbps = _hlsBitrateKbps,
 				rtlGainDb = _rtlGainDb,
 				rtlAgc = _rtlAgc,
-				forceStereo = _forceStereo,
+				stereoMode,
+				forceStereo = _stereoMode == StereoMode.ForceStereo,
 			};
 		}
 	}
 
-	public void SetStreamingConfig(string? format, double? bufferSeconds, string? delivery, int? hlsBitrateKbps, double? rtlGainDb, bool? rtlAgc, bool? forceStereo, bool restartActiveStream)
+	public void SetStreamingConfig(string? format, double? bufferSeconds, string? delivery, int? hlsBitrateKbps, double? rtlGainDb, bool? rtlAgc, string? stereoMode, bool? forceStereo, bool restartActiveStream)
 	{
 		var shouldRestartHls = false;
+		var cleanupHls = false;
 		lock (_gate)
 		{
 			if (delivery is not null)
@@ -1091,9 +1357,14 @@ internal sealed class RadioService
 			{
 				_rtlAgc = rtlAgc.Value;
 			}
-			if (forceStereo is not null)
+			if (stereoMode is not null)
 			{
-				_forceStereo = forceStereo.Value;
+				_stereoMode = NormalizeStereoMode(stereoMode);
+			}
+			else if (forceStereo is not null)
+			{
+				// Back-compat: older clients only send forceStereo boolean.
+				_stereoMode = forceStereo.Value ? StereoMode.ForceStereo : StereoMode.Auto;
 			}
 
 			_lastError = null;
@@ -1103,7 +1374,12 @@ internal sealed class RadioService
 				try { _streamCts?.Cancel(); } catch { }
 				try { _hlsCts?.Cancel(); } catch { }
 				shouldRestartHls = _delivery == "hls";
+				cleanupHls = shouldRestartHls;
 			}
+		}
+		if (cleanupHls)
+		{
+			CleanupHlsFolder();
 		}
 
 		if (shouldRestartHls)
@@ -1126,6 +1402,7 @@ internal sealed class RadioService
 
 	public void Stop()
 	{
+		var cleanupHls = false;
 		lock (_gate)
 		{
 			_lastError = null;
@@ -1136,6 +1413,11 @@ internal sealed class RadioService
 
 			_hlsRestartQueued = false;
 			try { _hlsCts?.Cancel(); } catch { }
+			cleanupHls = true;
+		}
+		if (cleanupHls)
+		{
+			CleanupHlsFolder();
 		}
 	}
 
@@ -1208,7 +1490,7 @@ internal sealed class RadioService
 		int bitrateKbps;
 		double? rtlGainDb;
 		bool rtlAgc;
-		bool forceStereo;
+		StereoMode stereoMode;
 		lock (_gate)
 		{
 			freqHz = _freqHz;
@@ -1216,7 +1498,7 @@ internal sealed class RadioService
 			bitrateKbps = _hlsBitrateKbps;
 			rtlGainDb = _rtlGainDb;
 			rtlAgc = _rtlAgc;
-			forceStereo = _forceStereo;
+			stereoMode = _stereoMode;
 			_lastError = null;
 			// Default to MONO until softfm reports stereo lock.
 			_stereoDetected = false;
@@ -1240,7 +1522,7 @@ internal sealed class RadioService
 			StartInfo = new ProcessStartInfo
 			{
 				FileName = softfmPath,
-				Arguments = $"{(forceStereo ? "--force-stereo " : string.Empty)}-t rtlsdr -r 48000 -c \"{BuildRtlSdrConfig(freqHz, rtlGainDb, rtlAgc)}\" -R -",
+				Arguments = $"{BuildStereoArgs(stereoMode)}-t rtlsdr -r 48000 -c \"{BuildRtlSdrConfig(freqHz, rtlGainDb, rtlAgc)}\" -R -",
 				UseShellExecute = false,
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
@@ -1259,9 +1541,11 @@ internal sealed class RadioService
 		var playlistFile = "stream.m3u8";
 		var initFile = "init.mp4";
 		var segmentPattern = "seg_%05d.m4s";
+		var inputChannels = stereoMode == StereoMode.Mono ? 1 : 2;
 
 		// Prefer MediaFoundation AAC encoder for speed on Windows.
-		var ffmpegArgs = $"-hide_banner -loglevel warning -f s16le -ar 48000 -ac 2 -i pipe:0 -c:a aac_mf -b:a {bitrateKbps}k " +
+		// NOTE: softfm outputs mono (1ch) when --mono is used, otherwise interleaved stereo (2ch).
+		var ffmpegArgs = $"-hide_banner -loglevel warning -f s16le -ar 48000 -ac {inputChannels} -i pipe:0 -c:a aac_mf -b:a {bitrateKbps}k " +
 			$"-f hls -hls_time {segmentSeconds:0.0} -hls_list_size {listSize} " +
 			$"-hls_flags delete_segments+append_list+independent_segments+omit_endlist -hls_allow_cache 0 " +
 			$"-hls_segment_type fmp4 -hls_fmp4_init_filename \"{initFile}\" -hls_segment_filename \"{segmentPattern}\" " +
@@ -1394,7 +1678,7 @@ internal sealed class RadioService
 		double bufferSeconds;
 		double? rtlGainDb;
 		bool rtlAgc;
-		bool forceStereo;
+		StereoMode stereoMode;
 		lock (_gate)
 		{
 			freqHz = _freqHz;
@@ -1402,13 +1686,14 @@ internal sealed class RadioService
 			bufferSeconds = _bufferSeconds;
 			rtlGainDb = _rtlGainDb;
 			rtlAgc = _rtlAgc;
-			forceStereo = _forceStereo;
+			stereoMode = _stereoMode;
 			_lastError = null;
 			// Default to MONO until softfm reports stereo lock.
 			_stereoDetected = false;
 			_pilotLevel = null;
 			_stereoUpdatedUtc = DateTimeOffset.UtcNow;
 		}
+		var inputChannels = stereoMode == StereoMode.Mono ? 1 : 2;
 
 		var bitrateKbps = fmt switch
 		{
@@ -1438,7 +1723,7 @@ internal sealed class RadioService
 			StartInfo = new ProcessStartInfo
 			{
 				FileName = softfmPath,
-				Arguments = $"{(forceStereo ? "--force-stereo " : string.Empty)}-t rtlsdr -r 48000 -c \"{BuildRtlSdrConfig(freqHz, rtlGainDb, rtlAgc)}\" -R -",
+				Arguments = $"{BuildStereoArgs(stereoMode)}-t rtlsdr -r 48000 -c \"{BuildRtlSdrConfig(freqHz, rtlGainDb, rtlAgc)}\" -R -",
 				UseShellExecute = false,
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
@@ -1457,7 +1742,7 @@ internal sealed class RadioService
 			StartInfo = new ProcessStartInfo
 			{
 				FileName = "ffmpeg.exe",
-				Arguments = BuildFfmpegArgs(fmt),
+				Arguments = BuildFfmpegArgs(fmt, inputChannels),
 				UseShellExecute = false,
 				RedirectStandardInput = true,
 				RedirectStandardOutput = true,
@@ -1741,6 +2026,12 @@ internal sealed class RadioService
 		return n is "direct" or "hls";
 	}
 
+	public static bool IsSupportedStereoMode(string stereoMode)
+	{
+		var n = NormalizeStereoModeRaw(stereoMode);
+		return n is "auto" or "stereo" or "mono" or "on" or "off";
+	}
+
 	public string ResolveFormat(string? requested)
 	{
 		if (!string.IsNullOrWhiteSpace(requested) && IsSupportedFormat(requested))
@@ -1770,18 +2061,46 @@ internal sealed class RadioService
 	private static string NormalizeDelivery(string delivery)
 		=> (delivery ?? string.Empty).Trim().ToLowerInvariant();
 
-	private static string BuildFfmpegArgs(string fmt)
+	private static string NormalizeStereoModeRaw(string stereoMode)
+		=> (stereoMode ?? string.Empty).Trim().ToLowerInvariant();
+
+	private static StereoMode NormalizeStereoMode(string stereoMode)
 	{
-		// Input is raw S16LE stereo @ 48k.
+		var n = NormalizeStereoModeRaw(stereoMode);
+		return n switch
+		{
+			"mono" => StereoMode.Mono,
+			"stereo" => StereoMode.ForceStereo,
+			// Legacy values
+			"on" => StereoMode.ForceStereo,
+			"off" => StereoMode.Auto,
+			_ => StereoMode.Auto,
+		};
+	}
+
+	private static string BuildStereoArgs(StereoMode mode)
+	{
+		return mode switch
+		{
+			StereoMode.Mono => "--mono ",
+			StereoMode.ForceStereo => "--force-stereo ",
+			_ => string.Empty,
+		};
+	}
+
+	private static string BuildFfmpegArgs(string fmt, int inputChannels)
+	{
+		// Input is raw S16LE @ 48k. softfm outputs 2ch normally, 1ch in --mono mode.
+		inputChannels = inputChannels == 1 ? 1 : 2;
 		return fmt switch
 		{
 			// AAC: browsers typically expect AAC in MP4/M4A, not raw ADTS.
 			// Use fragmented MP4 for streaming over HTTP without Content-Length.
-			"aac" => "-hide_banner -loglevel warning -f s16le -ar 48000 -ac 2 -i pipe:0 -c:a aac -b:a 192k -movflags +frag_keyframe+empty_moov+default_base_moof -muxdelay 0 -muxpreload 0 -flush_packets 1 -f mp4 pipe:1",
+			"aac" => $"-hide_banner -loglevel warning -f s16le -ar 48000 -ac {inputChannels} -i pipe:0 -c:a aac -b:a 192k -movflags +frag_keyframe+empty_moov+default_base_moof -muxdelay 0 -muxpreload 0 -flush_packets 1 -f mp4 pipe:1",
 
 			// Opus: Ogg/Opus is not supported by some browsers (notably Safari). WebM/Opus has broader support.
-			"opus" => "-hide_banner -loglevel warning -f s16le -ar 48000 -ac 2 -i pipe:0 -c:a libopus -b:a 96k -vbr on -compression_level 10 -application audio -cluster_time_limit 1000 -cluster_size_limit 0 -flush_packets 1 -f webm pipe:1",
-			_ => "-hide_banner -loglevel warning -f s16le -ar 48000 -ac 2 -i pipe:0 -c:a libmp3lame -b:a 192k -flush_packets 1 -f mp3 pipe:1",
+			"opus" => $"-hide_banner -loglevel warning -f s16le -ar 48000 -ac {inputChannels} -i pipe:0 -c:a libopus -b:a 96k -vbr on -compression_level 10 -application audio -cluster_time_limit 1000 -cluster_size_limit 0 -flush_packets 1 -f webm pipe:1",
+			_ => $"-hide_banner -loglevel warning -f s16le -ar 48000 -ac {inputChannels} -i pipe:0 -c:a libmp3lame -b:a 192k -flush_packets 1 -f mp3 pipe:1",
 		};
 	}
 

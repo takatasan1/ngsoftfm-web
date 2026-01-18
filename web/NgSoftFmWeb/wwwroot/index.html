@@ -47,16 +47,109 @@
     a { color: inherit; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
-    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
-    header {
+    .app { max-width: 1240px; margin: 0 auto; padding: 18px; }
+    .topbar {
+      position: sticky;
+      top: 12px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.06));
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+    }
+    @media (max-width: 860px) {
+      .topbar { position: static; }
+    }
+    h1 { margin: 0; font-size: 22px; letter-spacing: .2px; }
+    .sub { color: var(--muted); font-size: 13px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+      margin-top: 14px;
+      align-items: start;
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .panel { display: grid; gap: 14px; }
+    .panel.full { grid-column: 1 / -1; }
+
+    .sectionHead {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
       gap: 12px;
-      padding: 8px 0 16px;
+      margin-bottom: 12px;
     }
-    h1 { margin: 0; font-size: 22px; letter-spacing: .2px; }
-    .sub { color: var(--muted); font-size: 13px; }
+    h2 {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .small { font-size: 12px; }
+    .kpi {
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      border-radius: 14px;
+      padding: 10px 12px;
+      min-width: 220px;
+    }
+    .kpiTitle { font-size: 12px; color: var(--muted); }
+    .kpiValue { font-size: 14px; color: var(--text); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+    .nowPlaying {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(124,58,237,.14), rgba(255,255,255,.04));
+      margin-bottom: 12px;
+    }
+    .nowTop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .navBtn {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      font-size: 26px;
+      line-height: 1;
+    }
+    .navBtn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+    .nowFreq {
+      font-size: 34px;
+      font-weight: 760;
+      letter-spacing: .02em;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+    }
+    .nowName {
+      font-size: 16px;
+      color: var(--muted);
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     .card {
       background: linear-gradient(180deg, var(--panel), rgba(255,255,255,.03));
@@ -184,98 +277,233 @@
       white-space: pre-wrap;
       display: none;
     }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translate(-50%, 10px);
+      opacity: 0;
+      pointer-events: none;
+      max-width: min(92vw, 680px);
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.45);
+      color: rgba(255,255,255,.92);
+      padding: 10px 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      transition: opacity .18s ease, transform .18s ease;
+      font-size: 13px;
+    }
+    @media (prefers-color-scheme: light) {
+      .toast { background: rgba(255,255,255,.75); color: rgba(0,0,0,.86); }
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    body.busy {
+      cursor: progress;
+    }
+
+    .meter {
+      height: 7px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+      margin-top: 8px;
+    }
+    .meter > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, rgba(124,58,237,.92), rgba(34,197,94,.82));
+      transition: width .22s ease;
+    }
+
+    .presetList { margin-top: 10px; display: grid; gap: 10px; }
+    .presetRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel2);
+    }
+    .presetRow.active {
+      border-color: rgba(124,58,237,.55);
+      box-shadow: 0 0 0 4px rgba(124,58,237,.14);
+    }
+    .presetMain { min-width: 0; display: flex; gap: 10px; align-items: baseline; }
+    .presetFreq { font-weight: 650; font-size: 14px; letter-spacing: .2px; }
+    .presetName { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .presetActions { display: flex; gap: 8px; align-items: center; }
+    .iconBtn {
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      cursor: pointer;
+      color: var(--text);
+      padding: 0;
+    }
+    .iconBtn:hover { border-color: rgba(255,255,255,.22); }
+    .iconBtn svg { width: 16px; height: 16px; opacity: .92; }
+    .presetEdit { display: none; gap: 10px; align-items: center; width: 100%; }
+    .presetRow.editing .presetView { display: none; }
+    .presetRow.editing .presetEdit { display: flex; }
+    .presetEdit input { flex: 1; }
+
+    #presetDetails > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      list-style: none;
+    }
+    #presetDetails > summary::-webkit-details-marker { display: none; }
+    #presetDetails { width: 100%; }
+    #presetDetails[open] .presetList { margin-top: 10px; }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
+  <div class="app">
+    <header class="topbar">
       <div>
-        <h1>NGSoftFM Web</h1>
+        <h1>NGSoftFM</h1>
         <div class="sub">ローカル/遠隔（LAN・Tailscale）での FM 受信と再生</div>
-      </div>
-      <div class="badges">
-        <span class="badge"><span id="dotStream" class="dot"></span><span id="badgeStream">停止中</span></span>
-        <span class="badge"><span id="dotStereo" class="dot"></span><span id="badgeStereo">受信: 不明</span></span>
-        <span class="badge"><span class="dot warn"></span><span id="badgeDelivery">配信: -</span></span>
       </div>
     </header>
 
-    <div class="card">
-      <div class="grid">
-        <label class="span-3">
-          周波数 (MHz)
-          <input id="freq" type="number" step="0.001" value="80.0" inputmode="decimal" />
-        </label>
+    <main class="layout">
+      <section class="panel full">
+        <div class="card">
+          <div class="sectionHead">
+            <h2>Player</h2>
+            <div class="badges">
+              <span class="badge"><span id="dotStream" class="dot"></span><span id="badgeStream">停止中</span></span>
+              <span class="badge"><span id="dotStereo" class="dot"></span><span id="badgeStereo">受信: 不明</span></span>
+              <span class="badge"><span class="dot warn"></span><span id="badgeDelivery">配信: -</span></span>
+            </div>
+          </div>
 
-        <label class="span-3">
-          プリセット
-          <select id="preset"></select>
-        </label>
+          <div class="nowPlaying" aria-label="Now Playing">
+            <div class="nowTop">
+              <button id="presetPrev" class="iconBtn navBtn" type="button" title="前のプリセット">‹</button>
+              <div id="playerNowFreq" class="nowFreq mono" style="text-align:center">-</div>
+              <button id="presetNext" class="iconBtn navBtn" type="button" title="次のプリセット">›</button>
+            </div>
+            <div id="playerNowName" class="nowName">-</div>
+          </div>
 
-        <label class="span-3">
-          配信
-          <select id="delivery">
-            <option value="hls">HLS (推奨)</option>
-            <option value="direct">Direct</option>
-          </select>
-        </label>
+          <div id="err" role="alert" aria-live="polite"></div>
 
-        <label class="span-3">
-          形式
-          <select id="fmt">
-            <option value="mp3">MP3</option>
-            <option value="aac">AAC</option>
-            <option value="opus">Opus</option>
-          </select>
-        </label>
-
-        <label class="span-3">
-          HLS kbps
-          <input id="hlsKbps" type="number" step="16" min="32" max="512" value="320" />
-        </label>
-
-        <label class="span-3">
-          バッファ (秒)
-          <input id="buf" type="number" step="0.5" min="0" max="60" value="2" />
-        </label>
-
-        <label class="span-3">
-          RTL ゲイン (dB)
-          <input id="gain" type="number" step="0.1" min="0" max="100" value="19.7" />
-        </label>
-
-        <label class="span-3">
-          RTL AGC
-          <select id="rtlAgc">
-            <option value="off">OFF</option>
-            <option value="on">ON</option>
-          </select>
-        </label>
-
-        <label class="span-3">
-          強制ステレオ
-          <select id="forceStereo">
-            <option value="off">OFF</option>
-            <option value="on">ON</option>
-          </select>
-        </label>
-
-        <div class="span-6 actions">
-          <button id="start" class="primary">受信</button>
-          <button id="stop" class="danger">停止</button>
+          <div class="player">
+            <video id="audio" controls playsinline></video>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <p class="hint">ChromeでAAC/Opusを安定再生したい場合はHLSを使います（内部で <code>/hls/stream.m3u8</code> を再生）。</p>
+      <section class="panel left">
+        <div class="card">
+          <div class="sectionHead">
+            <h2>Tuning</h2>
+            <div class="actions">
+              <button id="start" class="primary">受信</button>
+              <button id="stop" class="danger">停止</button>
+              <button id="presetAddCurrent">プリセット追加</button>
+              <button id="toggleSettings" title="配信/バッファ等の設定を表示">設定</button>
+            </div>
+          </div>
 
-      <div class="player">
-        <video id="audio" controls playsinline></video>
-      </div>
+          <div class="grid">
+            <label class="span-3">
+              周波数 (MHz)
+              <input id="freq" type="number" step="0.1" value="80.0" inputmode="decimal" />
+            </label>
 
-      <div style="margin-top:14px">
-        <details>
-          <summary>局スキャン（受信可能な局を探して登録）</summary>
-          <div class="grid" style="margin-top:12px">
+            <div class="span-12">
+              <details id="presetDetails">
+                <summary>
+                  <span class="muted small">プリセット（クリックで周波数をセット）</span>
+                  <span id="presetSummary" class="muted small"></span>
+                </summary>
+                <div style="margin-top:10px">
+                  <select id="preset" style="display:none"></select>
+                  <div id="presetList" class="presetList"></div>
+                </div>
+              </details>
+            </div>
+
+            <label class="span-3 settingOnly hidden">
+              配信
+              <select id="delivery">
+                <option value="hls">HLS (推奨)</option>
+                <option value="direct">Direct</option>
+              </select>
+            </label>
+
+            <label class="span-3 settingOnly hidden">
+              形式
+              <select id="fmt">
+                <option value="mp3">MP3</option>
+                <option value="aac">AAC</option>
+                <option value="opus">Opus</option>
+              </select>
+            </label>
+
+            <label class="span-3 settingOnly hidden">
+              HLS kbps
+              <input id="hlsKbps" type="number" step="16" min="32" max="512" value="320" />
+            </label>
+
+            <label class="span-3 settingOnly hidden">
+              バッファ (秒)
+              <input id="buf" type="number" step="0.5" min="0" max="60" value="2" />
+            </label>
+
+            <label class="span-3 settingOnly hidden">
+              RTL ゲイン (dB)
+              <input id="gain" type="number" step="0.1" min="0" max="100" value="19.7" />
+            </label>
+
+            <label class="span-3 settingOnly hidden">
+              RTL AGC
+              <select id="rtlAgc">
+                <option value="off">OFF</option>
+                <option value="on">ON</option>
+              </select>
+            </label>
+
+            <label class="span-3">
+              出力モード
+              <select id="forceStereo">
+                <option value="auto">自動</option>
+                <option value="stereo">強制ステレオ</option>
+                <option value="mono">モノラル</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="hint">ChromeでAAC/Opusを安定再生したい場合はHLSを使います（内部で <code>/hls/stream.m3u8</code> を再生）。</p>
+        </div>
+
+        <div class="card">
+          <div class="sectionHead">
+            <h2>Scanner</h2>
+            <span id="scanProgress" class="muted small"></span>
+          </div>
+
+          <div class="grid">
             <label class="span-3">開始 MHz<input id="scanStart" type="number" step="0.1" value="76.0" /></label>
             <label class="span-3">終了 MHz<input id="scanEnd" type="number" step="0.1" value="95.0" /></label>
             <label class="span-3">刻み MHz<input id="scanStep" type="number" step="0.1" value="0.1" /></label>
@@ -292,52 +520,62 @@
               <button id="scanGo" class="primary">スキャン開始</button>
               <button id="scanStop">スキャン停止</button>
               <button id="scanAddAll">発見局を一括登録</button>
-              <span id="scanProgress" class="muted"></span>
             </div>
           </div>
+
           <div id="scanResults" class="statusBox"></div>
-        </details>
-      </div>
-
-      <div id="err"></div>
-
-      <div class="statusBox">
-        <div class="statusLine">
-          <div>
-            <div class="statusTitle">接続先</div>
-            <div id="uiUrl" class="statusValue">-</div>
-          </div>
-          <button id="copyUrl" title="URLをコピー">コピー</button>
         </div>
 
-        <details>
-          <summary>サーバ管理</summary>
-          <div class="grid" style="margin-top:12px">
-            <label class="span-6">
-              管理トークン（任意）
-              <input id="adminToken" type="password" placeholder="NGSOFTFM_ADMIN_TOKEN を設定している場合に入力" />
-            </label>
-            <div class="span-6 actions" style="justify-content:flex-start">
-              <button id="serverRestart" class="danger">サーバ再起動</button>
-              <span id="serverRestartHint" class="muted"></span>
+        <div class="card">
+          <div class="sectionHead">
+            <h2>Server</h2>
+            <div class="actions">
+              <button id="toggleServerAdmin" title="サーバ再起動UIを表示/非表示">管理</button>
             </div>
           </div>
-          <p class="hint">※ 再起動は配信/スキャンを停止し、プロセスを終了します。自動で起動し直すには監視スクリプト（例: <code>scripts/Start-Web.ps1</code>）で起動してください。</p>
-        </details>
 
-        <div class="statusLine">
-          <div>
-            <div class="statusTitle">受信状態</div>
-            <div id="rxinfo" class="statusValue">-</div>
+          <div class="statusBox">
+            <div class="statusLine">
+              <div>
+                <div class="statusTitle">接続先</div>
+                <div id="uiUrl" class="statusValue mono">-</div>
+              </div>
+              <button id="copyUrl" title="URLをコピー">コピー</button>
+            </div>
+          </div>
+
+          <div id="serverAdminWrap" class="hidden">
+            <div class="grid">
+              <label class="span-6">
+                管理トークン（任意）
+                <input id="adminToken" type="password" placeholder="NGSOFTFM_ADMIN_TOKEN を設定している場合に入力" />
+              </label>
+              <div class="span-6 actions" style="justify-content:flex-start">
+                <button id="serverRestart" class="danger">サーバ再起動</button>
+                <span id="serverRestartHint" class="muted"></span>
+              </div>
+            </div>
+            <p class="hint">※ 再起動は配信/スキャンを停止し、プロセスを終了します。自動で起動し直すには監視スクリプト（例: <code>scripts/Start-Web.ps1</code>）で起動してください。</p>
           </div>
         </div>
+      </section>
 
-        <details>
-          <summary>詳細（/api/status）</summary>
-          <div id="status">(loading...)</div>
-        </details>
-      </div>
-    </div>
+      <section class="panel right">
+        <div class="card">
+          <div class="sectionHead">
+            <h2>Status</h2>
+            <div class="actions">
+              <button id="toggleStatus" title="ステータス表示を切り替え">表示</button>
+            </div>
+          </div>
+          <div id="statusWrap" class="hidden">
+            <div id="status">(loading...)</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" aria-live="polite"></div>
   </div>
 
   <script>
@@ -378,15 +616,387 @@
     const elErr = document.getElementById('err');
     const elUiUrl = document.getElementById('uiUrl');
     const elCopyUrl = document.getElementById('copyUrl');
+    const elToast = document.getElementById('toast');
+    const elPresetList = document.getElementById('presetList');
+    const elPresetAddCurrent = document.getElementById('presetAddCurrent');
     const elDotStream = document.getElementById('dotStream');
     const elBadgeStream = document.getElementById('badgeStream');
     const elDotStereo = document.getElementById('dotStereo');
     const elBadgeStereo = document.getElementById('badgeStereo');
     const elBadgeDelivery = document.getElementById('badgeDelivery');
+    const elPresetDetails = document.getElementById('presetDetails');
+    const elPresetSummary = document.getElementById('presetSummary');
+    const elPlayerNowFreq = document.getElementById('playerNowFreq');
+    const elPlayerNowName = document.getElementById('playerNowName');
+    const elPresetPrev = document.getElementById('presetPrev');
+    const elPresetNext = document.getElementById('presetNext');
+    const elToggleSettings = document.getElementById('toggleSettings');
+    const elToggleStatus = document.getElementById('toggleStatus');
+    const elStatusWrap = document.getElementById('statusWrap');
+    const elToggleServerAdmin = document.getElementById('toggleServerAdmin');
+    const elServerAdminWrap = document.getElementById('serverAdminWrap');
 
     let hls = null;
     let isBusy = false;
     let lastScanResults = [];
+    let toastTimer = null;
+    let lastPresets = [];
+
+    // Preset panel open/close state
+    try {
+      if (elPresetDetails) {
+        const saved = localStorage.getItem('presetDetailsOpen');
+        if (saved === '1') elPresetDetails.open = true;
+        else if (saved === '0') elPresetDetails.open = false;
+        elPresetDetails.addEventListener('toggle', () => {
+          try { localStorage.setItem('presetDetailsOpen', elPresetDetails.open ? '1' : '0'); } catch {}
+        });
+      }
+    } catch {}
+
+    function setWrapVisible(wrapEl, visible) {
+      if (!wrapEl) return;
+      wrapEl.classList.toggle('hidden', !visible);
+    }
+
+    function restoreToggleState(key, defaultOpen) {
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved === '1') return true;
+        if (saved === '0') return false;
+      } catch {}
+      return !!defaultOpen;
+    }
+
+    function persistToggleState(key, open) {
+      try { localStorage.setItem(key, open ? '1' : '0'); } catch {}
+    }
+
+    // Settings panel (delivery/buf/etc): hidden by default (except Force Stereo)
+    try {
+      const settingEls = Array.from(document.querySelectorAll('.settingOnly'));
+      const savedOpen = restoreToggleState('settingsOpen', false);
+      for (const el of settingEls) el.classList.toggle('hidden', !savedOpen);
+      if (elToggleSettings) {
+        elToggleSettings.setAttribute('aria-expanded', savedOpen ? 'true' : 'false');
+        elToggleSettings.addEventListener('click', () => {
+          const anyHidden = settingEls.some(el => el.classList.contains('hidden'));
+          const nextOpen = anyHidden;
+          for (const el of settingEls) el.classList.toggle('hidden', !nextOpen);
+          elToggleSettings.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+          persistToggleState('settingsOpen', nextOpen);
+        });
+      }
+    } catch {}
+
+    // Status panel: toggle show/hide, hidden by default
+    try {
+      const open = restoreToggleState('statusOpen', false);
+      setWrapVisible(elStatusWrap, open);
+      if (elToggleStatus) {
+        elToggleStatus.textContent = open ? '隠す' : '表示';
+        elToggleStatus.setAttribute('aria-expanded', open ? 'true' : 'false');
+        elToggleStatus.addEventListener('click', () => {
+          const nextOpen = elStatusWrap ? elStatusWrap.classList.contains('hidden') : true;
+          setWrapVisible(elStatusWrap, nextOpen);
+          elToggleStatus.textContent = nextOpen ? '隠す' : '表示';
+          elToggleStatus.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+          persistToggleState('statusOpen', nextOpen);
+        });
+      }
+    } catch {}
+
+    // Server admin/restart UI: toggle show/hide, hidden by default
+    try {
+      const open = restoreToggleState('serverAdminOpen', false);
+      setWrapVisible(elServerAdminWrap, open);
+      if (elToggleServerAdmin) {
+        elToggleServerAdmin.textContent = open ? '閉じる' : '管理';
+        elToggleServerAdmin.setAttribute('aria-expanded', open ? 'true' : 'false');
+        elToggleServerAdmin.addEventListener('click', () => {
+          const nextOpen = elServerAdminWrap ? elServerAdminWrap.classList.contains('hidden') : true;
+          setWrapVisible(elServerAdminWrap, nextOpen);
+          elToggleServerAdmin.textContent = nextOpen ? '閉じる' : '管理';
+          elToggleServerAdmin.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+          persistToggleState('serverAdminOpen', nextOpen);
+        });
+      }
+    } catch {}
+
+    function toast(msg, ms) {
+      if (!elToast) return;
+      const t = msg ? String(msg) : '';
+      if (!t) return;
+      elToast.textContent = t;
+      elToast.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        elToast.classList.remove('show');
+      }, Number.isFinite(ms) ? ms : 1800);
+    }
+
+    function iconPencilSvg() {
+      return '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    }
+    function iconTrashSvg() {
+      return '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 6V4h8v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    }
+
+    function normalizePresetsPayload(json) {
+      if (json && Array.isArray(json.presets)) {
+        return json.presets
+          .map(p => ({ freqMHz: String(p && p.freqMHz || '').trim(), name: String(p && p.name || '-').trim() || '-' }))
+          .filter(p => p.freqMHz.length > 0);
+      }
+      const mhz = (json && Array.isArray(json.presetsMHz)) ? json.presetsMHz : [];
+      return mhz.map(v => ({ freqMHz: String(v).trim(), name: '-' })).filter(p => p.freqMHz.length > 0);
+    }
+
+    function findPresetNameByMHz(mhz) {
+      const list = Array.isArray(lastPresets) ? lastPresets : [];
+      if (!Number.isFinite(mhz)) return '-';
+      const key = mhz.toFixed(1);
+      const hit = list.find(p => String(p && p.freqMHz) === key);
+      const name = hit && hit.name ? String(hit.name).trim() : '';
+      return name || '-';
+    }
+
+    function getSortedPresetMHz() {
+      const list = Array.isArray(lastPresets) ? lastPresets : [];
+      const mhz = list
+        .map(p => Number(p && p.freqMHz))
+        .filter(v => Number.isFinite(v))
+        .map(v => Number(v.toFixed(1)));
+      const uniq = Array.from(new Set(mhz));
+      uniq.sort((a, b) => a - b);
+      return uniq;
+    }
+
+    function setTuningMHz(mhz) {
+      if (!Number.isFinite(mhz)) return;
+      elFreq.value = mhz.toFixed(1);
+      try {
+        if (elPreset) {
+          elPreset.value = mhz.toFixed(1);
+          elPreset.dispatchEvent(new Event('change'));
+        }
+      } catch {}
+      renderPresetList(lastPresets);
+    }
+
+    function updatePresetNavEnabled() {
+      const list = getSortedPresetMHz();
+      const enabled = list.length >= 2;
+      if (elPresetPrev) elPresetPrev.disabled = !enabled;
+      if (elPresetNext) elPresetNext.disabled = !enabled;
+    }
+
+    async function navigatePreset(delta) {
+      const list = getSortedPresetMHz();
+      if (!list.length) {
+        toast('プリセットがありません');
+        return;
+      }
+
+      const cur = Number(elFreq && elFreq.value);
+      const curMhz = Number.isFinite(cur) ? Number(cur.toFixed(1)) : null;
+
+      let next;
+      const idx = (curMhz === null) ? -1 : list.findIndex(v => v === curMhz);
+      if (idx >= 0) {
+        next = list[(idx + delta + list.length) % list.length];
+      } else if (curMhz === null) {
+        next = list[0];
+      } else {
+        if (delta > 0) next = list.find(v => v > curMhz) ?? list[0];
+        else next = [...list].reverse().find(v => v < curMhz) ?? list[list.length - 1];
+      }
+
+      setTuningMHz(next);
+      await startReceiving(next);
+    }
+
+    function renderPresetList(presets) {
+      if (!elPresetList) return;
+      elPresetList.innerHTML = '';
+
+      const list = Array.isArray(presets) ? presets : [];
+      if (elPresetSummary) {
+        const cur = Number(elFreq && elFreq.value);
+        const curKey = Number.isFinite(cur) ? cur.toFixed(1) : null;
+        const curItem = curKey ? list.find(x => String(x.freqMHz) === curKey) : null;
+        const curText = curItem ? `${curItem.freqMHz}MHz ${String(curItem.name || '-').trim() || '-'}` : '';
+        elPresetSummary.textContent = list.length ? `${list.length}件${curText ? ' / ' + curText : ''}` : '';
+      }
+      if (!list.length) {
+        const empty = document.createElement('div');
+        empty.className = 'statusLine';
+        empty.innerHTML = '<div class="statusTitle">プリセット</div><div class="statusValue muted">(登録なし)</div>';
+        elPresetList.appendChild(empty);
+        updatePresetNavEnabled();
+        return;
+      }
+
+      const cur = Number(elFreq && elFreq.value);
+      const curKey = Number.isFinite(cur) ? cur.toFixed(1) : null;
+
+      for (const p of list) {
+        const row = document.createElement('div');
+        row.className = 'presetRow';
+
+        const view = document.createElement('div');
+        view.className = 'presetView';
+        view.style.display = 'flex';
+        view.style.justifyContent = 'space-between';
+        view.style.alignItems = 'center';
+        view.style.gap = '12px';
+        view.style.width = '100%';
+
+        const main = document.createElement('div');
+        main.className = 'presetMain';
+
+        const freq = document.createElement('div');
+        freq.className = 'presetFreq mono';
+        freq.textContent = `${p.freqMHz} MHz`;
+
+        const name = document.createElement('div');
+        name.className = 'presetName';
+        name.textContent = (p.name && String(p.name).trim()) ? String(p.name).trim() : '-';
+
+        main.appendChild(freq);
+        main.appendChild(name);
+
+        const actions = document.createElement('div');
+        actions.className = 'presetActions';
+
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'iconBtn';
+        btnEdit.type = 'button';
+        btnEdit.title = '編集';
+        btnEdit.innerHTML = iconPencilSvg();
+
+        actions.appendChild(btnEdit);
+        view.appendChild(main);
+        view.appendChild(actions);
+
+        const edit = document.createElement('div');
+        edit.className = 'presetEdit';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = (p.name && String(p.name).trim()) ? String(p.name).trim() : '-';
+        input.placeholder = '-';
+
+        const btnSave = document.createElement('button');
+        btnSave.type = 'button';
+        btnSave.className = 'primary';
+        btnSave.textContent = '保存';
+
+        const btnDel = document.createElement('button');
+        btnDel.type = 'button';
+        btnDel.className = 'iconBtn';
+        btnDel.title = '削除';
+        btnDel.innerHTML = iconTrashSvg();
+
+        const btnCancel = document.createElement('button');
+        btnCancel.type = 'button';
+        btnCancel.textContent = '取消';
+
+        edit.appendChild(input);
+        edit.appendChild(btnSave);
+        edit.appendChild(btnDel);
+        edit.appendChild(btnCancel);
+
+        row.appendChild(view);
+        row.appendChild(edit);
+
+        // Active highlight
+        if (curKey && String(p.freqMHz) === curKey) {
+          row.classList.add('active');
+        }
+
+        // Clicking the row sets tuning frequency.
+        row.addEventListener('click', (ev) => {
+          if (row.classList.contains('editing')) return;
+          // Ignore clicks on buttons.
+          if (ev.target && (ev.target.closest && ev.target.closest('button'))) return;
+          const mhz = Number(p.freqMHz);
+          if (!Number.isFinite(mhz)) return;
+          elFreq.value = mhz.toFixed(1);
+          // Keep hidden select in sync for legacy behavior.
+          elPreset.value = String(p.freqMHz);
+          elPreset.dispatchEvent(new Event('change'));
+          renderPresetList(lastPresets);
+
+
+          // One-push switch: stop -> start -> play
+          startReceiving(mhz);
+        });
+
+        btnEdit.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          row.classList.toggle('editing');
+          if (row.classList.contains('editing')) {
+            input.focus();
+            input.select();
+          }
+        });
+
+        btnCancel.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          row.classList.remove('editing');
+        });
+
+        btnSave.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const mhz = Number(p.freqMHz);
+          if (!Number.isFinite(mhz)) return;
+          try {
+            await api('/api/presets/update', { freqMHz: mhz, name: String(input.value || '-') });
+            await loadPresets();
+            toast('局名を保存しました');
+            setError('');
+          } catch (e) {
+            setError(e);
+          }
+        });
+
+        btnDel.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const ok = confirm(`${p.freqMHz} MHz をプリセットから削除しますか？`);
+          if (!ok) return;
+          const mhz = Number(p.freqMHz);
+          if (!Number.isFinite(mhz)) return;
+          try {
+            await api('/api/presets/remove', { freqMHz: mhz });
+            await loadPresets();
+            toast('削除しました');
+            setError('');
+          } catch (e) {
+            setError(e);
+          }
+        });
+
+        // Save on Enter
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            btnSave.click();
+          } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            btnCancel.click();
+          }
+        });
+
+        elPresetList.appendChild(row);
+      }
+
+      updatePresetNavEnabled();
+    }
 
     function setError(msg) {
       const t = msg ? String(msg) : '';
@@ -399,6 +1009,7 @@
       elStart.disabled = isBusy;
       // Stop is usually safe, but avoid double-click storms while starting.
       elStop.disabled = isBusy;
+      document.body.classList.toggle('busy', isBusy);
       if (isBusy) {
         elStart.textContent = '受信中...';
       } else {
@@ -519,8 +1130,8 @@
       setTimeout(() => location.reload(), 5000);
     }
 
-    function setPresetOptions(presetsMHz) {
-      const list = Array.isArray(presetsMHz) ? presetsMHz : [];
+    function setPresetOptions(presets) {
+      const list = Array.isArray(presets) ? presets : [];
       elPreset.innerHTML = '';
       const opt0 = document.createElement('option');
       opt0.value = '';
@@ -533,23 +1144,40 @@
         optE.textContent = '(登録なし)';
         optE.disabled = true;
         elPreset.appendChild(optE);
+        lastPresets = [];
+        renderPresetList(lastPresets);
         return;
       }
 
-      for (const v of list) {
-        const s = String(v);
+      for (const p of list) {
+        const s = String(p && p.freqMHz || '').trim();
+        const n = String(p && p.name || '-').trim() || '-';
+        if (!s) continue;
         const opt = document.createElement('option');
         opt.value = s;
-        opt.textContent = s + ' MHz';
+        opt.textContent = `${s} MHz — ${n}`;
         elPreset.appendChild(opt);
       }
+
+      lastPresets = list;
+      renderPresetList(lastPresets);
+
+      // Default open behavior (only when user hasn't chosen a preference)
+      try {
+        if (elPresetDetails) {
+          const saved = localStorage.getItem('presetDetailsOpen');
+          if (saved !== '0' && saved !== '1') {
+            elPresetDetails.open = list.length <= 8;
+          }
+        }
+      } catch {}
     }
 
     async function loadPresets() {
       try {
         const res = await fetch('/api/presets');
         const json = await res.json();
-        setPresetOptions(json ? json.presetsMHz : []);
+        setPresetOptions(normalizePresetsPayload(json));
       } catch {
         // ignore
       }
@@ -607,18 +1235,52 @@
         return;
       }
 
+      // IF はチューナーにより基準が異なる想定なので、今回の描画バッチ内で min/max を取り、
+      // 「最大IFの局がバー最大」になるように相対正規化します。
+      const ifValues = [];
+      for (const r of results) {
+        const v = (r && typeof r.ifDb === 'number') ? r.ifDb : NaN;
+        if (Number.isFinite(v)) ifValues.push(v);
+      }
+      const ifMin = ifValues.length ? Math.min(...ifValues) : NaN;
+      const ifMax = ifValues.length ? Math.max(...ifValues) : NaN;
+      const hasIfScale = Number.isFinite(ifMin) && Number.isFinite(ifMax) && (ifMax > ifMin);
+
       let html = '';
       // Simple table-like list.
       for (const r of results.slice(0, 80)) {
         const f = String(r.freqMHz || '');
-        const ifDb = (typeof r.ifDb === 'number') ? r.ifDb.toFixed(1) : '-';
-        const bbDb = (typeof r.bbDb === 'number') ? r.bbDb.toFixed(1) : '-';
-        const auDb = (typeof r.audioDb === 'number') ? r.audioDb.toFixed(1) : '-';
+        const ifDbN = (typeof r.ifDb === 'number') ? r.ifDb : null;
+        const bbDbN = (typeof r.bbDb === 'number') ? r.bbDb : null;
+        const auDbN = (typeof r.audioDb === 'number') ? r.audioDb : null;
+        const ifDb = (typeof ifDbN === 'number') ? ifDbN.toFixed(1) : '-';
+        const bbDb = (typeof bbDbN === 'number') ? bbDbN.toFixed(1) : '-';
+        const auDb = (typeof auDbN === 'number') ? auDbN.toFixed(1) : '-';
         const st = (r.stereo === true) ? 'ST' : 'MO?';
+
+        // Map dB-ish values into 0..100 for a simple meter.
+        const toPct = (v) => {
+          if (typeof v !== 'number' || !Number.isFinite(v)) return 0;
+          // Heuristic: treat -60..0 as 0..100, clamp outside.
+          const clamped = Math.max(-60, Math.min(0, v));
+          return Math.round(((clamped + 60) / 60) * 100);
+        };
+
+        // IF: larger => stronger => longer bar (max IF => 100%).
+        const ifPct = (hasIfScale && typeof ifDbN === 'number' && Number.isFinite(ifDbN))
+          ? Math.round(((Math.max(ifMin, Math.min(ifMax, ifDbN)) - ifMin) / (ifMax - ifMin)) * 100)
+          : null;
+
+        // Fallback: BB/audio are typically larger (closer to 0) => stronger.
+        const pct = (typeof ifPct === 'number')
+          ? ifPct
+          : Math.max(toPct(bbDbN), toPct(auDbN));
+
         html += `<div class="statusLine">
-          <div style="min-width:220px">
+          <div style="min-width:240px">
             <div class="statusTitle">${f} MHz</div>
             <div class="statusValue">IF ${ifDb} / BB ${bbDb} / audio ${auDb} / ${st}</div>
+            <div class="meter" aria-hidden="true"><span style="width:${pct}%"></span></div>
           </div>
           <div class="row">
             <button data-add="${f}">登録</button>
@@ -675,19 +1337,34 @@
         const res = await fetch('/api/status');
         const json = await res.json();
 
+        // Determine stereo mode (prefer status.stereoMode; fallback to current UI selection).
+        let stereoMode = '';
+        if (json && typeof json.stereoMode === 'string') stereoMode = String(json.stereoMode || '').toLowerCase();
+        if (!stereoMode) stereoMode = String(elForceStereo && elForceStereo.value ? elForceStereo.value : '').toLowerCase();
+
+        // Now Playing (frequency + station name)
+        const mhz = (json && typeof json.freqHz === 'number') ? (Number(json.freqHz) / 1_000_000.0) : Number(elFreq && elFreq.value);
+        if (elPlayerNowFreq) elPlayerNowFreq.textContent = Number.isFinite(mhz) ? `${mhz.toFixed(1)} MHz` : '-';
+        if (elPlayerNowName) elPlayerNowName.textContent = Number.isFinite(mhz) ? findPresetNameByMHz(mhz) : '-';
+
+        updatePresetNavEnabled();
+
         // Human-friendly RX info.
+        let effectiveStereo = null;
+        if (stereoMode === 'stereo') effectiveStereo = true;
+        else if (stereoMode === 'mono') effectiveStereo = false;
+        else if (json && typeof json.stereoDetected === 'boolean') effectiveStereo = json.stereoDetected;
+
         let stereoText = '不明';
-        if (json && typeof json.stereoDetected === 'boolean') {
-          stereoText = json.stereoDetected ? 'STEREO' : 'MONO';
-        }
+        if (typeof effectiveStereo === 'boolean') stereoText = effectiveStereo ? 'STEREO' : 'MONO';
         let pilotText = '';
         if (json && typeof json.pilotLevel === 'number') {
           pilotText = ` / pilot=${json.pilotLevel.toFixed(6)}`;
         }
-        elRxInfo.textContent = `受信: ${stereoText}${pilotText}`;
+        if (elRxInfo) elRxInfo.textContent = `受信: ${stereoText}${pilotText}`;
 
         setBadgeStreaming(!!(json && json.streaming));
-        setBadgeStereo(json ? json.stereoDetected : null);
+        setBadgeStereo(typeof effectiveStereo === 'boolean' ? effectiveStereo : (json ? json.stereoDetected : null));
         if (json && json.delivery) {
           elBadgeDelivery.textContent = '配信: ' + String(json.delivery).toUpperCase();
         }
@@ -711,7 +1388,12 @@
         if (json && typeof json.hlsBitrateKbps === 'number') elHlsKbps.value = String(json.hlsBitrateKbps);
         if (json && typeof json.rtlGainDb === 'number') elGain.value = String(json.rtlGainDb);
         if (json && typeof json.rtlAgc === 'boolean') elRtlAgc.value = json.rtlAgc ? 'on' : 'off';
-        if (json && typeof json.forceStereo === 'boolean') elForceStereo.value = json.forceStereo ? 'on' : 'off';
+        if (json && typeof json.stereoMode === 'string') {
+          const m = String(json.stereoMode || '').toLowerCase();
+          if (m === 'mono' || m === 'stereo' || m === 'auto') elForceStereo.value = m;
+        } else if (json && typeof json.forceStereo === 'boolean') {
+          elForceStereo.value = json.forceStereo ? 'stereo' : 'auto';
+        }
       } catch (e) {
         // ignore
       }
@@ -725,7 +1407,39 @@
       const mhz = Number(v);
       if (!Number.isFinite(mhz)) return;
       elFreq.value = mhz.toFixed(1);
+      renderPresetList(lastPresets);
     });
+
+    if (elPresetPrev) {
+      elPresetPrev.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        await navigatePreset(-1);
+      });
+    }
+    if (elPresetNext) {
+      elPresetNext.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        await navigatePreset(1);
+      });
+    }
+
+    if (elPresetAddCurrent) {
+      elPresetAddCurrent.addEventListener('click', async () => {
+        const mhz = Number(elFreq.value);
+        if (!Number.isFinite(mhz)) {
+          setError('周波数が不正です');
+          return;
+        }
+        try {
+          await api('/api/presets/add', { freqMHz: mhz, name: '-' });
+          await loadPresets();
+          toast('プリセットに追加しました');
+          setError('');
+        } catch (e) {
+          setError(e);
+        }
+      });
+    }
 
     elScanGo.addEventListener('click', scanStart);
     elScanStop.addEventListener('click', scanStop);
@@ -774,10 +1488,11 @@
       }
 
       const rtlAgc = (String(elRtlAgc.value || 'off') === 'on');
-      const forceStereo = (String(elForceStereo.value || 'off') === 'on');
+      const stereoMode = String(elForceStereo.value || 'auto');
 
       try {
-        await api('/api/config', { delivery, format: fmt, bufferSeconds, hlsBitrateKbps, rtlGainDb, rtlAgc, forceStereo });
+        // Keep legacy forceStereo for backward compatibility.
+        await api('/api/config', { delivery, format: fmt, bufferSeconds, hlsBitrateKbps, rtlGainDb, rtlAgc, stereoMode, forceStereo: (stereoMode === 'stereo') });
       } catch (e) {
         setError(e);
       }
@@ -794,6 +1509,22 @@
           // ignore
         }
         await new Promise(r => setTimeout(r, 250));
+      }
+      return false;
+    }
+
+    async function waitUntilStopped(timeoutMs) {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        try {
+          const res = await fetch('/api/status', { cache: 'no-store' });
+          const json = await res.json();
+          const streaming = !!(json && (json.streaming || json.hlsRunning));
+          if (!streaming) return true;
+        } catch {
+          // ignore
+        }
+        await new Promise(r => setTimeout(r, 200));
       }
       return false;
     }
@@ -863,10 +1594,9 @@
       throw new Error('このブラウザはHLSを再生できません（MSE非対応の可能性）');
     }
 
-    elStart.addEventListener('click', async () => {
+    async function startReceiving(mhz) {
       if (isBusy) return;
       setError('');
-      const mhz = Number(elFreq.value);
       if (!Number.isFinite(mhz) || mhz <= 0) {
         setError('周波数(MHz)が不正です');
         return;
@@ -879,6 +1609,26 @@
         setBusy(false);
         await refresh();
         return;
+      }
+
+      // If currently receiving, enforce stop -> start to avoid stale HLS playlist / player state.
+      try {
+        const res = await fetch('/api/status', { cache: 'no-store' });
+        const st = await res.json();
+        const streaming = !!(st && (st.streaming || st.hlsRunning));
+        if (streaming) {
+          try { await api('/api/stop'); } catch {}
+          stopPlayback();
+          const stopped = await waitUntilStopped(6000);
+          if (!stopped) {
+            setError('停止に時間がかかっています。もう一度お試しください');
+            setBusy(false);
+            await refresh();
+            return;
+          }
+        }
+      } catch {
+        // ignore and continue
       }
 
       try {
@@ -908,6 +1658,11 @@
       }
       setBusy(false);
       await refresh();
+    }
+
+    elStart.addEventListener('click', async () => {
+      const mhz = Number(elFreq.value);
+      await startReceiving(mhz);
     });
 
     elDelivery.addEventListener('change', () => {
@@ -932,6 +1687,7 @@
       const txt = elUiUrl.textContent || '';
       try {
         await navigator.clipboard.writeText(txt);
+        toast('URLをコピーしました');
       } catch {
         // Fallback
         try {
@@ -944,6 +1700,7 @@
           ta.select();
           document.execCommand('copy');
           ta.remove();
+          toast('URLをコピーしました');
         } catch {}
       }
     });

@@ -29,4 +29,5 @@ C:\Users\matsu\source\repos\NGSoftFM\ngsoftfm\web\NgSoftFmWeb\obj\Release\net9.0
 C:\Users\matsu\source\repos\NGSoftFM\ngsoftfm\web\NgSoftFmWeb\obj\Release\net9.0\ref\NgSoftFmWeb.dll
 C:\Users\matsu\source\repos\NGSoftFM\ngsoftfm\web\NgSoftFmWeb\obj\Release\net9.0\compressed\nvhoouefec-j7nt105gei.gz
 C:\Users\matsu\source\repos\NGSoftFM\ngsoftfm\web\NgSoftFmWeb\obj\Release\net9.0\compressed\cjsox88iru-5jdrt0g2nd.gz
-C:\Users\matsu\source\repos\NGSoftFM\ngsoftfm\web\NgSoftFmWeb\obj\Release\net9.0\compressed\9slrxsvu0u-aqd7nvi3nj.gz
+C:\Users\matsu\source\repos\NGSoftFM\ngsoftfm\web\NgSoftFmWeb\bin\Release\net9.0\presets.json
+C:\Users\matsu\source\repos\NGSoftFM\ngsoftfm\web\NgSoftFmWeb\obj\Release\net9.0\compressed\9slrxsvu0u-3mn88w7qzz.gz
