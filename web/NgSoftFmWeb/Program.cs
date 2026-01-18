@@ -457,6 +457,7 @@ internal sealed class RadioService
 
 	private readonly object _gate = new();
 	private readonly string _hlsRoot;
+	private readonly string _contentRoot;
 	private long _freqHz = 80_000_000;
 	private string? _lastError;
 	private bool? _stereoDetected;
@@ -513,21 +514,110 @@ internal sealed class RadioService
 	public RadioService(string hlsRoot, string contentRoot)
 	{
 		_hlsRoot = hlsRoot;
-		_presetsFilePath = Path.Combine(string.IsNullOrWhiteSpace(contentRoot) ? AppContext.BaseDirectory : contentRoot, "presets.json");
+		_contentRoot = string.IsNullOrWhiteSpace(contentRoot) ? AppContext.BaseDirectory : contentRoot;
+		_presetsFilePath = ResolvePresetsFilePath(_contentRoot);
 		Directory.CreateDirectory(_hlsRoot);
 		TryLoadPresetsFromDisk();
 	}
 
-	private void TryLoadPresetsFromDisk()
+	private static string ResolvePresetsFilePath(string contentRoot)
+	{
+		// Optional override.
+		var overridePath = Environment.GetEnvironmentVariable("NGSOFTFM_PRESETS_PATH");
+		if (!string.IsNullOrWhiteSpace(overridePath))
+		{
+			try
+			{
+				overridePath = overridePath.Trim();
+				// If a directory is given, place presets.json inside it.
+				if (Directory.Exists(overridePath))
+				{
+					return Path.Combine(overridePath, "presets.json");
+				}
+				return overridePath;
+			}
+			catch
+			{
+				// Fall through.
+			}
+		}
+
+		// Default: store user data outside the repo so git operations won't wipe it.
+		try
+		{
+			var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+			if (!string.IsNullOrWhiteSpace(localAppData))
+			{
+				return Path.Combine(localAppData, "NgSoftFmWeb", "presets.json");
+			}
+		}
+		catch
+		{
+			// Fall through.
+		}
+
+		// Fallback: content root (legacy behavior).
+		return Path.Combine(string.IsNullOrWhiteSpace(contentRoot) ? AppContext.BaseDirectory : contentRoot, "presets.json");
+	}
+
+	private static bool TryPathEquals(string a, string b)
 	{
 		try
 		{
-			if (!File.Exists(_presetsFilePath))
+			var pa = Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+			var pb = Path.GetFullPath(b).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+			return string.Equals(pa, pb, StringComparison.OrdinalIgnoreCase);
+		}
+		catch
+		{
+			return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+		}
+	}
+
+	private IEnumerable<string> EnumeratePresetLoadCandidates()
+	{
+		yield return _presetsFilePath;
+
+		// Legacy locations (older builds / previous behavior).
+		var legacyContentRoot = Path.Combine(_contentRoot, "presets.json");
+		if (!TryPathEquals(legacyContentRoot, _presetsFilePath))	
+		{
+			yield return legacyContentRoot;
+		}
+
+		var legacyBaseDir = Path.Combine(AppContext.BaseDirectory, "presets.json");
+		if (!TryPathEquals(legacyBaseDir, _presetsFilePath) && !TryPathEquals(legacyBaseDir, legacyContentRoot))
+		{
+			yield return legacyBaseDir;
+		}
+	}
+
+	private void TryLoadPresetsFromDisk()
+	{
+		foreach (var path in EnumeratePresetLoadCandidates())
+		{
+			if (TryLoadPresetsFromDisk(path))
 			{
+				// If we loaded from a legacy location, migrate by saving to the current path.
+				if (!TryPathEquals(path, _presetsFilePath))
+				{
+					TrySavePresetsToDisk();
+				}
 				return;
 			}
+		}
+	}
 
-			var json = File.ReadAllText(_presetsFilePath, Encoding.UTF8);
+	private bool TryLoadPresetsFromDisk(string path)
+	{
+		try
+		{
+			if (!File.Exists(path))
+			{
+				return false;
+			}
+
+			var json = File.ReadAllText(path, Encoding.UTF8);
 			var file = JsonSerializer.Deserialize<PresetsFile>(json);
 
 			var items = new List<PresetItem>();
@@ -584,10 +674,12 @@ internal sealed class RadioService
 				_presets.Clear();
 				_presets.AddRange(items);
 			}
+			return true;
 		}
 		catch
 		{
 			// Ignore corrupt/unreadable presets file.
+			return false;
 		}
 	}
 
@@ -595,6 +687,12 @@ internal sealed class RadioService
 	{
 		try
 		{
+			var dir = Path.GetDirectoryName(_presetsFilePath);
+			if (!string.IsNullOrWhiteSpace(dir))
+			{
+				Directory.CreateDirectory(dir);
+			}
+
 			PresetWire[] presets;
 			string[] mhz;
 			lock (_gate)
