@@ -15,7 +15,7 @@ $webProj  = Join-Path $repoRoot 'web\NgSoftFmWeb\NgSoftFmWeb.csproj'
 $nativeExe = Join-Path $repoRoot 'build-ucrt64\softfm.exe'
 
 $distRoot = Join-Path $repoRoot 'dist'
-$outRoot  = Join-Path $distRoot 'NgSoftFM-win-x64'
+$outRoot  = Join-Path $distRoot 'KikuFM-win-x64'
 $webOut   = Join-Path $outRoot 'NgSoftFmWeb'
 $nativeOut= Join-Path $outRoot 'native'
 
@@ -56,7 +56,7 @@ if (!(Test-Path $nativeExe)) {
 Copy-Item -Force $nativeExe (Join-Path $nativeOut 'softfm.exe')
 
 # Add starter BAT (Release-friendly)
-$starterBat = Join-Path $outRoot 'Start-NgSoftFmWeb.bat'
+$starterBat = Join-Path $outRoot 'Start-KikuFM.bat'
 @'
 @echo off
 setlocal
@@ -100,6 +100,13 @@ pause
 exit /b 1
 '@ | Set-Content -Encoding ASCII $starterBat
 
+# Backward-compatible BAT name (for older docs)
+$starterBatLegacy = Join-Path $outRoot 'Start-NgSoftFmWeb.bat'
+@'
+@echo off
+call "%~dp0Start-KikuFM.bat" %*
+'@ | Set-Content -Encoding ASCII $starterBatLegacy
+
 # Copy notices
 Copy-Item -Force (Join-Path $repoRoot 'LICENSE') (Join-Path $outRoot 'LICENSE')
 Copy-Item -Force (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') (Join-Path $outRoot 'THIRD_PARTY_NOTICES.md')
@@ -107,14 +114,14 @@ Copy-Item -Force (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') (Join-Path $outR
 # README (Japanese) - generated from UTF-8 base64 to avoid script file encoding issues
 $readme = Join-Path $outRoot 'README.txt'
 $readmeB64 = @'
-TkdTb2Z0Rk0gKHdpbi14NjQpCgrotbfli5U6CiAgMSkgZmZtcGVnLmV4ZSDjgpIgUEFUSCDjgavpgJrjgZkKICAgICDkvos6IHdpbmdldCBpbnN0YWxsIEd5YW4uRkZtcGVnCiAgMikgU3RhcnQtTmdTb2Z0Rm1XZWIuYmF0IOOCkuWun+ihjAoK5rOo5oSPOgotIHNvZnRmbS5leGUg44GvIG5hdGl2ZS9zb2Z0Zm0uZXhlIOOBq+WQjOaisea4iOOBv+OBp+OBmeOAggotIOODl+ODquOCu+ODg+ODiOOBryAlTE9DQUxBUFBEQVRBJVxOZ1NvZnRGbVdlYlxwcmVzZXRzLmpzb24g44Gr5L+d5a2Y44GV44KM44G+44GZ44CC
+S2lrdUZNICh3aW4teDY0KQoK6LW35YuVOgogIDEpIGZmbXBlZy5leGUg44KSIFBBVEgg44Gr6YCa44GZCiAgICAg5L6LOiB3aW5nZXQgaW5zdGFsbCBHeWFuLkZGbXBlZwogIDIpIFN0YXJ0LUtpa3VGTS5iYXQg44KS5a6f6KGMCgrms6jmhI86Ci0gc29mdGZtLmV4ZSDjga8gbmF0aXZlL3NvZnRmbS5leGUg44Gr5ZCM5qKx5riI44G/44Gn44GZ44CCCi0g44OX44Oq44K744OD44OI44GvICVMT0NBTEFQUERBVEElXE5nU29mdEZtV2ViXHByZXNldHMuanNvbiDjgavkv53lrZjjgZXjgozjgb7jgZnjgIIK
 '@
 $readmeBytes = [Convert]::FromBase64String(($readmeB64 -replace '\s',''))
 $readmeText = [Text.Encoding]::UTF8.GetString($readmeBytes)
 [System.IO.File]::WriteAllText($readme, $readmeText, (New-Object System.Text.UTF8Encoding($true)))
 
 # Zip
-$zipPath = Join-Path $distRoot 'NgSoftFM-win-x64.zip'
+$zipPath = Join-Path $distRoot 'KikuFM-win-x64.zip'
 if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
 Write-Host "Creating ZIP: $zipPath"
 Compress-Archive -Path (Join-Path $outRoot '*') -DestinationPath $zipPath

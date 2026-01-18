@@ -1,4 +1,4 @@
-# GitHub Releases 配布手順（win-x64 / ffmpegは同梱しない）
+# GitHub Releases 配布手順（KikuFM / win-x64 / ffmpegは同梱しない）
 
 このプロジェクトは **展開して `.bat` を実行するだけ** で起動できる ZIP を GitHub Releases に置く運用を想定します。
 
@@ -18,23 +18,23 @@
      - `powershell -ExecutionPolicy Bypass -File .\scripts\Make-Release.ps1`
 
 3. 生成物
-   - `dist/NgSoftFM-win-x64.zip`
+  - `dist/KikuFM-win-x64.zip`
 
 4. 動作確認
    - できれば別PC/別ユーザー環境で
-     - ZIP展開 → `Start-NgSoftFmWeb.bat` 実行
+  - ZIP展開 → `Start-KikuFM.bat` 実行
 
 ## GitHub Releases へアップロード
 
 1. GitHubでタグを切る（例: `v1.0.0`）
 2. Releases を作成
-3. `dist/NgSoftFM-win-x64.zip` を添付
+3. `dist/KikuFM-win-x64.zip` を添付
 
 ## 利用者向け（README.txt にも同梱）
 
 - `ffmpeg.exe` を PATH に通す
   - 例: `winget install Gyan.FFmpeg`
-- `Start-NgSoftFmWeb.bat` を実行
+- `Start-KikuFM.bat` を実行
 
 ## 補足
 

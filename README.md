@@ -1,10 +1,47 @@
-NGSoftFM Web（Windowsネイティブ運用）
-===============================
+KikuFM — SDRチューナーをWebサーバー化してFMラジオを配信
+=============================================
+
+PCに挿したSDR（RTL-SDR等）を **「FMラジオ受信 + Web配信サーバー」** として動かし、
+スマホ/別PCからブラウザで **同じFM放送を再生** できるようにするプロジェクトです。
+
+- 受信機は“サーバー側PC”に置き、再生はLAN/Tailscale越しの端末でOK
+- Web UIから周波数/プリセット/配信方式（HLS/Direct）を操作
+- スキャンで見つけた局をプリセット化して運用
+
+まずはリリース版の使い方
+------------------------
+
+「ビルドせずに使う」場合は GitHub Releases からZIPを入手して、展開して `.bat` を実行するだけです。
+
+1. GitHub Releases から `KikuFM-win-x64.zip` をダウンロードして展開
+2. `ffmpeg.exe` を PATH に通す（例: `winget install Gyan.FFmpeg`）
+3. 展開したフォルダの `Start-KikuFM.bat` を実行
+4. ブラウザで `http://127.0.0.1:5055/` を開く
+
+補足:
+
+- サーバは `0.0.0.0:5055` にバインドするため、同一LAN/Tailscaleの別端末からもアクセス可能です
+- プリセットは既定で `%LOCALAPPDATA%\NgSoftFmWeb\presets.json` に保存されます
+- `ffmpeg.exe` が無いと配信を開始できません（同梱しない方針）
+
+全体の使い方（運用イメージ）
+----------------------------
+
+1. サーバーPCでSDRチューナーを接続（RTL-SDR等）
+2. Web UIで周波数を入力して「受信」
+3. 安定再生したい場合は配信をHLSに（推奨）
+4. 「局スキャン」で発見 → プリセット登録
+5. スマホ/別PCから `http://<サーバーIP>:5055/` を開いて再生
+
+ソースからビルド/開発したい場合は、以降の「クイックスタート（Windows）」以降を参照してください。
+
+KikuFM Web（Windowsネイティブ運用）
+-------------------------------
 
 概要
 ----
 
-このリポジトリは、FM放送受信ソフト NGSoftFM（C++）をベースに、Windowsでの運用をしやすくするための Web UI（.NET）と補助スクリプトを追加した派生版です。
+このリポジトリは、FM放送受信ソフト NGSoftFM（C++ / upstream）をベースに、Windowsでの運用をしやすくするための Web UI（.NET）と補助スクリプトを追加した派生版です。
 
 主な用途:
 
@@ -44,7 +81,7 @@ NGSoftFM Web（Windowsネイティブ運用）
 
 - Web UI を起動
 
-- `scripts/Start-NgSoftFmWeb.bat` を実行
+- `scripts/Start-KikuFM.bat` を実行
 - ブラウザで `http://127.0.0.1:5055/` を開きます
 
 補足:
@@ -72,7 +109,8 @@ Windowsで `softfm.exe` を使うには、MSYS2（UCRT64）でビルドする想
 スクリプト
 --------
 
-- `scripts/Start-NgSoftFmWeb.bat`: Web UI起動（推奨）
+- `scripts/Start-KikuFM.bat`: Web UI起動（推奨）
+- `scripts/Start-NgSoftFmWeb.bat`: 互換用（既存ドキュメント向け）
 - `scripts/Start-Web.ps1`: Webサーバ監視起動（exit code 42 で自動再起動）
 - `scripts/Start-FMStream-Native.ps1`: `softfm.exe | ffmpeg` でHTTP配信（Web UIとは別系統の簡易配信）
 
