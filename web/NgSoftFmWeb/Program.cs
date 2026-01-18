@@ -321,14 +321,19 @@ app.MapGet("/stream.mp3", async (HttpContext ctx, RadioService radio) =>
 
 app.MapGet("/stream", async (HttpContext ctx, RadioService radio) =>
 {
-	// Optional override: /stream?fmt=mp3|aac|opus
+	// Optional override: /stream?fmt=mp3|wav
 	string? fmt = null;
 	if (ctx.Request.Query.TryGetValue("fmt", out var fmtVals))
 	{
 		fmt = fmtVals.ToString();
 	}
 
-	var resolvedFmt = radio.ResolveFormat(fmt);
+	var resolvedFmt = string.IsNullOrWhiteSpace(fmt) ? "mp3" : fmt;
+	resolvedFmt = resolvedFmt.Trim().ToLowerInvariant();
+	if (resolvedFmt is not ("mp3" or "wav"))
+	{
+		return Results.BadRequest(new { error = "fmt must be one of: mp3, wav" });
+	}
 
 	// Single-user design: if a stream is already active, cancel it and switch to this request.
 	var streamLease = radio.BeginStreaming();
@@ -337,8 +342,7 @@ app.MapGet("/stream", async (HttpContext ctx, RadioService radio) =>
 		ctx.Response.Headers.CacheControl = "no-store";
 		ctx.Response.ContentType = resolvedFmt switch
 		{
-			"aac" => "audio/mp4; codecs=mp4a.40.2",
-			"opus" => "audio/webm; codecs=opus",
+					"wav" => "audio/wav",
 			_ => "audio/mpeg",
 		};
 
@@ -1797,20 +1801,27 @@ internal sealed class RadioService
 		{
 			"aac" => 192,
 			"opus" => 96,
+			// For WAV, use the PCM byte rate below (not this bitrate).
 			_ => 192,
+		};
+		var bytesPerSecond = fmt switch
+		{
+			// softfm is raw PCM S16LE @ 48k. WAV muxing preserves the same sample format.
+			"wav" => 48000 * inputChannels * 2,
+			_ => (bitrateKbps * 1000) / 8,
 		};
 		var bufferBytes = bufferSeconds <= 0
 			? 0
-			: (int)Math.Clamp((bufferSeconds * bitrateKbps * 1000.0) / 8.0, 0, 8 * 1024 * 1024);
+			: (int)Math.Clamp(bufferSeconds * bytesPerSecond, 0, 8 * 1024 * 1024);
 
 		using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(requestCt, streamCt);
 		var linkedToken = linkedCts.Token;
 
-		var repoRoot = FindRepoRoot();
-		var softfmPath = Path.Combine(repoRoot, "build-ucrt64", "softfm.exe");
+		var softfmPath = ResolveSoftfmPath();
 		if (!File.Exists(softfmPath))
 		{
-			throw new FileNotFoundException($"softfm.exe not found: {softfmPath}. Build native binary first.");
+			throw new FileNotFoundException(
+				$"softfm.exe not found. Looked for NGSOFTFM_SOFTFM_PATH, app-local native/softfm.exe, and repo build output. Resolved='{softfmPath}'.");
 		}
 
 		var msysUcrtBin = @"C:\msys64\ucrt64\bin";
@@ -2020,6 +2031,60 @@ internal sealed class RadioService
 		}
 	}
 
+	private string ResolveSoftfmPath()
+	{
+		// Optional override: explicit path to softfm.exe.
+		var overridePath = Environment.GetEnvironmentVariable("NGSOFTFM_SOFTFM_PATH");
+		if (!string.IsNullOrWhiteSpace(overridePath))
+		{
+			try
+			{
+				overridePath = overridePath.Trim();
+				if (File.Exists(overridePath)) return overridePath;
+			}
+			catch
+			{
+				// Fall through.
+			}
+		}
+
+		// GitHub Releases / published layout: keep native binaries beside the web app.
+		try
+		{
+			var baseDir = AppContext.BaseDirectory;
+			var local1 = Path.Combine(baseDir, "softfm.exe");
+			if (File.Exists(local1)) return local1;
+			var local2 = Path.Combine(baseDir, "native", "softfm.exe");
+			if (File.Exists(local2)) return local2;
+		}
+		catch
+		{
+			// Fall through.
+		}
+
+		// Fallbacks for development runs.
+		try
+		{
+			var local3 = Path.Combine(_contentRoot, "build-ucrt64", "softfm.exe");
+			if (File.Exists(local3)) return local3;
+		}
+		catch
+		{
+			// Fall through.
+		}
+
+		try
+		{
+			var repoRoot = FindRepoRoot();
+			return Path.Combine(repoRoot, "build-ucrt64", "softfm.exe");
+		}
+		catch
+		{
+			// Last resort: relative.
+			return "softfm.exe";
+		}
+	}
+
 	private async Task DrainAndParseSoftfmStderrAsync(Stream stderr, CancellationToken ct)
 	{
 		var buf = new byte[4096];
@@ -2115,7 +2180,7 @@ internal sealed class RadioService
 	public static bool IsSupportedFormat(string fmt)
 	{
 		var n = NormalizeFormat(fmt);
-		return n is "mp3" or "aac" or "opus";
+			return n is "mp3" or "aac" or "opus" or "wav";
 	}
 
 	public static bool IsSupportedDelivery(string delivery)
@@ -2192,6 +2257,9 @@ internal sealed class RadioService
 		inputChannels = inputChannels == 1 ? 1 : 2;
 		return fmt switch
 		{
+				// WAV: uncompressed PCM inside a WAV container.
+				"wav" => $"-hide_banner -loglevel warning -f s16le -ar 48000 -ac {inputChannels} -i pipe:0 -c:a pcm_s16le -flush_packets 1 -f wav pipe:1",
+
 			// AAC: browsers typically expect AAC in MP4/M4A, not raw ADTS.
 			// Use fragmented MP4 for streaming over HTTP without Content-Length.
 			"aac" => $"-hide_banner -loglevel warning -f s16le -ar 48000 -ac {inputChannels} -i pipe:0 -c:a aac -b:a 192k -movflags +frag_keyframe+empty_moov+default_base_moof -muxdelay 0 -muxpreload 0 -flush_packets 1 -f mp4 pipe:1",

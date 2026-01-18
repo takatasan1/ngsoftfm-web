@@ -9,3 +9,6 @@ web/NgSoftFmWeb/obj/
 
 # Runtime data
 web/NgSoftFmWeb/presets.json
+
+# Release artifacts
+dist/
