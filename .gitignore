@@ -2,3 +2,10 @@
 .project
 .settings/
 build/
+
+# .NET build outputs (should not be versioned)
+web/NgSoftFmWeb/bin/
+web/NgSoftFmWeb/obj/
+
+# Runtime data
+web/NgSoftFmWeb/presets.json
